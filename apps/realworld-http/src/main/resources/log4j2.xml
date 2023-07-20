@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="ConsoleAppender" target="SYSTEM_OUT">
+            <JsonTemplateLayout eventTemplateUri="classpath:EcsLayout.json"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <AsyncLogger name="es.eriktorr.realworld" level="INFO" additivity="false">
+            <AppenderRef ref="ConsoleAppender"/>
+        </AsyncLogger>
+        <AsyncLogger name="trace4cats.log.LogSpanCompleter" level="INFO" additivity="false">
+            <AppenderRef ref="ConsoleAppender"/>
+        </AsyncLogger>
+        <AsyncRoot level="ERROR">
+            <AppenderRef ref="ConsoleAppender"/>
+        </AsyncRoot>
+    </Loggers>
+</Configuration>
