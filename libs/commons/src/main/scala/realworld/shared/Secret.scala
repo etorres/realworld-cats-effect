@@ -3,6 +3,7 @@ package realworld.shared
 
 import cats.implicits.toShow
 import cats.{Eq, Show}
+import io.circe.{Decoder, Encoder}
 
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -52,6 +53,12 @@ object Secret:
   given secretEq[A](using eq: Eq[A]): Eq[Secret[A]] = Eq.by(_.value)
 
   given secretShow[A]: Show[Secret[A]] = Show.fromToString
+
+  given secretJsonDecoder[A](using decoderA: Decoder[A], showA: Show[A]): Decoder[Secret[A]] =
+    decoderA.map(Secret.apply)
+
+  given secretJsonEncoder[A](using encoderA: Encoder[A]): Encoder[Secret[A]] =
+    encoderA.contramap(_.value)
 
   final private def sha1Hex(string: String) =
     import scala.language.unsafeNulls

@@ -2,11 +2,12 @@ package es.eriktorr
 package realworld.adapter.rest.response
 
 import realworld.adapter.rest.response.UserResponse.User
+import realworld.domain.model.User as UserModel
 import realworld.shared.Secret
 
-import cats.implicits.catsSyntaxTuple5Semigroupal
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.{Decoder, Encoder}
+import io.github.arainko.ducktape.*
 
 import java.net.URI
 
@@ -18,29 +19,13 @@ object UserResponse:
       token: Secret[String],
       username: String,
       bio: String,
-      image: URI,
+      image: Option[URI],
   )
 
-  given userDecoder: Decoder[User] = (cursor: HCursor) =>
-    (
-      cursor.downField("email").as[String],
-      cursor.downField("token").as[String].map(Secret.apply),
-      cursor.downField("username").as[String],
-      cursor.downField("bio").as[String],
-      cursor.downField("image").as[URI],
-    ).mapN(User.apply)
+  given userResponseDecoder: Decoder[UserResponse] = deriveDecoder
 
-  given userEncoder: Encoder[User] = (user: User) =>
-    Json.obj(
-      ("email", Json.fromString(user.email)),
-      ("token", Json.fromString(user.email)),
-      ("username", Json.fromString(user.email)),
-      ("bio", Json.fromString(user.email)),
-      ("image", Json.fromString(user.email)),
-    )
+  given userResponseEncoder: Encoder[UserResponse] = deriveEncoder
 
-  given userResponseDecoder: Decoder[UserResponse] = (cursor: HCursor) =>
-    cursor.downField("user").as[User].map(UserResponse.apply)
-
-  given userResponseEncoder: Encoder[UserResponse] = (response: UserResponse) =>
-    Json.obj(("user", response.user.asJson))
+  def from(user: UserModel): UserResponse = UserResponse(
+    user.into[User].transform(Field.computed(_.email, _.email)),
+  )
