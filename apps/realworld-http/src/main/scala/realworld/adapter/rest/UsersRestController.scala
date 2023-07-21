@@ -19,8 +19,8 @@ final class UsersRestController(usersService: UsersService)(using
   val routes: HttpRoutes[IO] = HttpRoutes.of[IO]:
     case request @ POST -> Root / "users" / "login" =>
       (for
-        userCredentials <- request.as[UserLoginRequest].map(_.toUserCredentials)
-        user <- usersService.loginUserIdentifiedBy(userCredentials)
+        credentials <- request.as[UserLoginRequest].map(_.toCredentials)
+        user <- usersService.loginUserIdentifiedBy(credentials)
         response <- Ok(UserResponse.from(user))
       yield response).handleErrorWith(errorHandler(request))
 

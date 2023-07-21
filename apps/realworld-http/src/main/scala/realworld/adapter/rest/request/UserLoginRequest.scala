@@ -21,7 +21,7 @@ object UserLoginRequest:
   given userLoginRequestJsonEncoder: Encoder[UserLoginRequest] = deriveEncoder
 
   extension (request: UserLoginRequest)
-    def toUserCredentials: Credentials =
+    def toCredentials: Credentials =
       request
         .into[Credentials]
         .transform(
