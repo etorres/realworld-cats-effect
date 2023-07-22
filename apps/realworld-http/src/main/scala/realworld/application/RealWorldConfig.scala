@@ -1,7 +1,6 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.shared.Secret
 import realworld.shared.application.HealthConfig.{LivenessPath, ReadinessPath, given}
 import realworld.shared.application.HttpServerConfig.{MaxActiveRequests, given}
 import realworld.shared.application.JdbcConfig.{ConnectUrl, Password, Username, given}
@@ -13,6 +12,7 @@ import cats.collections.Range
 import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple4Semigroupal, showInterpolator}
 import com.comcast.ip4s.{Host, Port}
 import com.monovore.decline.{Argument, Opts}
+import es.eriktorr.realworld.shared.Secret
 import io.github.iltotore.iron.refine
 
 import scala.concurrent.duration.FiniteDuration

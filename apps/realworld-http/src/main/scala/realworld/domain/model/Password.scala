@@ -1,10 +1,12 @@
 package es.eriktorr
 package realworld.domain.model
 
-import realworld.domain.model.Error.InvalidPassword
 import realworld.domain.model.Password.Format
 import realworld.shared.Secret
+import realworld.shared.data.error.ValidationError
+import realworld.shared.data.validated.ValidatedNecExtensions.{validatedNecTo, AllErrorsOr}
 
+import cats.implicits.catsSyntaxValidatedIdBinCompat0
 import com.password4j.types.Argon2
 import com.password4j.{Argon2Function, Password as Password4j}
 import org.tpolecat.typename.{typeName, TypeName}
@@ -20,20 +22,24 @@ object Password:
 
   def from[A <: Format](value: String)(using
       typeNameA: TypeName[A],
-  ): Either[InvalidPassword, Password[A]] = typeNameA.value match
-    case t if t == typeName[ClearText] => Right(Password(Secret(value)))
+  ): AllErrorsOr[Password[A]] = typeNameA.value match
+    case t if t == typeName[ClearText] => Password(Secret(value)).validNec
     case t if t == typeName[CipherText] =>
       if value.length == 159 && value.startsWith(argon2Signature) then
-        Right(Password(Secret(value)))
-      else Left(InvalidPassword("Invalid password format"))
-    case _ => Left(InvalidPassword("Unknown type"))
+        Password(Secret(value)).validNec
+      else InvalidPasswordFormat.invalidNec
+    case _ => UnsupportedPasswordType.invalidNec
 
   def unsafeFrom[A <: Format](value: String)(using typeNameA: TypeName[A]): Password[A] =
-    from[A](value) match
-      case Left(error) => throw error
-      case Right(value) => value
+    from[A](value).orFail
 
-  def cipher(password: Password[ClearText]): Either[InvalidPassword, Password[CipherText]] =
+  sealed abstract class PasswordValidationError(message: String) extends ValidationError(message)
+
+  case object InvalidPasswordFormat extends PasswordValidationError("Invalid password format")
+
+  case object UnsupportedPasswordType extends PasswordValidationError("Unsupported password type")
+
+  def cipher(password: Password[ClearText]): AllErrorsOr[Password[CipherText]] =
     Password.from[CipherText](
       Password4j.hash(password.value.value).addRandomSalt().`with`(argon2Function).getResult,
     )

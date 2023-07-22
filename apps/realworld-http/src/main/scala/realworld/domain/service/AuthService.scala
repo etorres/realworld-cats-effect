@@ -5,12 +5,12 @@ import realworld.domain.model.Email
 import realworld.domain.service.AuthService.Token
 import realworld.shared.Secret
 import realworld.shared.application.SecurityConfig
+import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
 
 import cats.effect.std.UUIDGen
 import cats.effect.{Clock, IO}
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import io.github.iltotore.iron.refine
 
 import java.time.Duration
 
@@ -52,5 +52,5 @@ object AuthService:
     override def verify(token: Secret[Token]): IO[Email] = for
       decodedJwt <- IO.delay(verifier.verify(token.value))
       claim = decodedJwt.getClaim(claimName).toString
-      email = Email(claim.refine)
+      email <- Email.from(claim).validated
     yield email

@@ -3,7 +3,7 @@ package realworld.shared.application
 
 import realworld.shared.Secret
 import realworld.shared.application.SecurityConfig.{JwtIssuer, JwtSecret}
-import realworld.shared.refined.Types.NonEmptyString
+import realworld.shared.data.refined.Constraints.NonEmptyString
 
 import cats.Show
 import cats.data.ValidatedNel

@@ -3,7 +3,7 @@ package realworld.shared.application
 
 import realworld.shared.application.HttpServerConfig.MaxActiveRequests
 import realworld.shared.application.argument.IpArgument
-import realworld.shared.refined.Types.Between
+import realworld.shared.data.refined.Constraints.Between
 
 import cats.Show
 import cats.data.ValidatedNel

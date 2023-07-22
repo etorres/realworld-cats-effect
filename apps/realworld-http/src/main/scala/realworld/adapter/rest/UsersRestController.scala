@@ -3,8 +3,9 @@ package realworld.adapter.rest
 
 import realworld.adapter.rest.request.UserLoginRequest
 import realworld.adapter.rest.response.UserResponse
-import realworld.domain.model.Error.InvalidCredentials
 import realworld.domain.service.UsersService
+import realworld.domain.service.UsersService.AccessForbidden
+import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
 
 import cats.effect.IO
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
@@ -19,17 +20,18 @@ final class UsersRestController(usersService: UsersService)(using
   val routes: HttpRoutes[IO] = HttpRoutes.of[IO]:
     case request @ POST -> Root / "users" / "login" =>
       (for
-        credentials <- request.as[UserLoginRequest].map(_.toCredentials)
+        userLoginRequest <- request.as[UserLoginRequest]
+        credentials <- userLoginRequest.toCredentials.validated
         user <- usersService.loginUserIdentifiedBy(credentials)
         response <- Ok(UserResponse.from(user))
-      yield response).handleErrorWith(errorHandler(request))
+      yield response).handleErrorWith(contextFrom(request))
 
-  private def errorHandler(request: Request[IO]): Throwable => IO[Response[IO]] =
+  private def contextFrom(request: Request[IO]): Throwable => IO[Response[IO]] =
     (error: Throwable) =>
       val requestId = request.headers.get(ci"X-Request-ID").map(_.head.value)
       val context = requestId.fold(Map.empty)(value => Map("http.request.id" -> value))
       error match
-        case invalidCredentials: InvalidCredentials =>
+        case accessForbidden: AccessForbidden =>
           logger.error(context)("Unauthorized access") *> Forbidden()
         case other =>
           logger.error(context, other)(

@@ -4,7 +4,7 @@ package realworld.shared.application
 import realworld.shared.Secret
 import realworld.shared.application.JdbcConfig.{ConnectUrl, DriverClassName, Password, Username}
 import realworld.shared.application.argument.RangeArgument
-import realworld.shared.refined.Types.{JdbcUrl, NonEmptyString}
+import realworld.shared.data.refined.Constraints.{JdbcUrl, NonEmptyString}
 
 import cats.Show
 import cats.collections.Range

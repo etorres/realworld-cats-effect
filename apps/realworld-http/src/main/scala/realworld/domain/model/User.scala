@@ -7,7 +7,7 @@ import java.net.URI
 
 final case class User(
     email: Email,
-    token: Secret[String],
+    token: Option[Secret[String]],
     username: String,
     bio: String,
     image: Option[URI],

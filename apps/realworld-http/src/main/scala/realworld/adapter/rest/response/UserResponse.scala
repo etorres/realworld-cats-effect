@@ -26,6 +26,10 @@ object UserResponse:
 
   given userResponseEncoder: Encoder[UserResponse] = deriveEncoder
 
-  def from(user: UserModel): UserResponse = UserResponse(
-    user.into[User].transform(Field.computed(_.email, _.email)),
+  def from(user: UserModel): Option[UserResponse] = user.token.map(token =>
+    UserResponse(
+      user
+        .into[User]
+        .transform(Field.computed(_.email, _.email), Field.const(_.token, token)),
+    ),
   )

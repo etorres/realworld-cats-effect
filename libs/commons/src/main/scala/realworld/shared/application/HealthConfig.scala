@@ -2,7 +2,7 @@ package es.eriktorr
 package realworld.shared.application
 
 import realworld.shared.application.HealthConfig.{LivenessPath, ReadinessPath}
-import realworld.shared.refined.Types.UrlPathSegment
+import realworld.shared.data.refined.Constraints.UrlPathSegment
 
 import cats.Show
 import cats.data.ValidatedNel

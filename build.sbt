@@ -21,7 +21,7 @@ ThisBuild / javacOptions ++= Seq("-source", "17", "-target", "17")
 
 addCommandAlias(
   "check",
-  "; undeclaredCompileDependenciesTest; unusedCompileDependenciesTest; scalafixAll; scalafmtSbtCheck; scalafmtCheckAll",
+  "; unusedCompileDependenciesTest; scalafixAll; scalafmtSbtCheck; scalafmtCheckAll",
 )
 
 lazy val commons = project
@@ -29,12 +29,19 @@ lazy val commons = project
   .configure(baseSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "com.comcast" %% "ip4s-core" % "3.3.0" % Optional,
       "com.monovore" %% "decline" % "2.4.1" % Optional,
+      "com.zaxxer" % "HikariCP" % "5.0.1" % Optional exclude ("org.slf4j", "slf4j-api"),
       "io.circe" %% "circe-core" % "0.14.5" % Optional,
-      "io.github.iltotore" %% "iron" % "2.2.0-RC3" % Optional,
       "io.github.iltotore" %% "iron-cats" % "2.2.0-RC3" % Optional,
+      "io.janstenpickle" %% "trace4cats-http4s-server" % "0.14.1" % Optional,
+      "io.janstenpickle" %% "trace4cats-iolocal" % "0.14.4" % Optional,
+      "org.http4s" %% "http4s-prometheus-metrics" % "0.24.4" % Optional,
+      "org.http4s" %% "http4s-server" % "0.23.23" % Optional,
+      "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC4" % Optional,
       "org.typelevel" %% "cats-collections-core" % "0.9.7" % Optional,
+      "org.typelevel" %% "cats-core" % "2.9.0" % Optional,
+      "org.typelevel" %% "cats-effect" % "3.5.0" % Optional,
+      "org.typelevel" %% "log4cats-core" % "2.6.0" % Optional,
     ),
   )
   .disablePlugins(ScalafixPlugin) // disabling until all dependencies support Scala 3.3.x
@@ -44,39 +51,27 @@ lazy val `realworld-http` = project
   .configure(baseSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "co.fs2" %% "fs2-core" % "3.7.0",
-      "co.fs2" %% "fs2-io" % "3.7.0",
       "com.auth0" % "java-jwt" % "4.4.0",
-      "com.comcast" %% "ip4s-core" % "3.3.0",
       "com.lmax" % "disruptor" % "3.4.4" % Runtime,
-      "com.monovore" %% "decline" % "2.4.1",
       "com.monovore" %% "decline-effect" % "2.4.1",
       "com.password4j" % "password4j" % "1.7.1" exclude ("org.slf4j", "slf4j-api"),
       "com.zaxxer" % "HikariCP" % "5.0.1" exclude ("org.slf4j", "slf4j-api"),
-      "io.circe" %% "circe-core" % "0.14.5",
       "io.circe" %% "circe-generic" % "0.14.5",
       "io.github.arainko" %% "ducktape" % "0.1.9",
-      "io.github.iltotore" %% "iron" % "2.2.0-RC3",
+      "io.github.iltotore" %% "iron-cats" % "2.2.0-RC3",
       "org.apache.logging.log4j" % "log4j-core" % "2.20.0" % Runtime,
       "org.apache.logging.log4j" % "log4j-layout-template-json" % "2.20.0" % Runtime,
       "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.20.0" % Runtime,
       "org.http4s" %% "http4s-circe" % "0.23.23",
-      "org.http4s" %% "http4s-core" % "0.23.23",
       "org.http4s" %% "http4s-dsl" % "0.23.23",
       "org.http4s" %% "http4s-ember-server" % "0.23.23",
       "org.http4s" %% "http4s-prometheus-metrics" % "0.24.4" % Runtime,
-      "org.http4s" %% "http4s-server" % "0.23.23",
       "org.postgresql" % "postgresql" % "42.6.0" % Runtime,
-      "org.tpolecat" %% "doobie-core" % "1.0.0-RC4",
-      "org.tpolecat" %% "doobie-free" % "1.0.0-RC4",
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC4",
-      "org.typelevel" %% "case-insensitive" % "1.4.0",
       "org.typelevel" %% "cats-collections-core" % "0.9.7",
       "org.typelevel" %% "cats-core" % "2.9.0",
       "org.typelevel" %% "cats-effect" % "3.5.1",
-      "org.typelevel" %% "cats-effect-kernel" % "3.5.1",
-      "org.typelevel" %% "cats-free" % "2.9.0",
-      "org.typelevel" %% "cats-kernel" % "2.9.0",
+      "org.typelevel" %% "cats-effect-std" % "3.5.1",
       "org.typelevel" %% "log4cats-core" % "2.6.0",
       "org.typelevel" %% "log4cats-noop" % "2.6.0" % Test,
       "org.typelevel" %% "log4cats-slf4j" % "2.6.0",
