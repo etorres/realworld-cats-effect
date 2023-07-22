@@ -5,7 +5,6 @@ import realworld.shared.data.error.ValidationError
 import realworld.shared.data.refined.Constraints.ValidEmail
 import realworld.shared.data.validated.ValidatedNecExtensions.{validatedNecTo, AllErrorsOr}
 
-import cats.data.Validated
 import io.github.iltotore.iron.*
 import io.github.iltotore.iron.cats.*
 

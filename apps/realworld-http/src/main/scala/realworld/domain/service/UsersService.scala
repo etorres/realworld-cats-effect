@@ -9,7 +9,8 @@ import cats.effect.IO
 
 final class UsersService(authService: AuthService, usersRepository: UsersRepository):
   def loginUserIdentifiedBy(credentials: Credentials): IO[User] = for
-    userWithPassword <- usersRepository.findUserWithPasswordBy(credentials.email)
+    maybeUserWithPassword <- usersRepository.findUserWithPasswordBy(credentials.email)
+    userWithPassword <- IO.fromOption(maybeUserWithPassword)(AccessForbidden(credentials.email))
     user <-
       if Password.check(credentials.password, userWithPassword.password) then
         authService

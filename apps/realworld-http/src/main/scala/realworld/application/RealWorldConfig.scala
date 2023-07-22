@@ -1,6 +1,7 @@
 package es.eriktorr
 package realworld.application
 
+import realworld.shared.Secret
 import realworld.shared.application.HealthConfig.{LivenessPath, ReadinessPath, given}
 import realworld.shared.application.HttpServerConfig.{MaxActiveRequests, given}
 import realworld.shared.application.JdbcConfig.{ConnectUrl, Password, Username, given}
@@ -12,8 +13,7 @@ import cats.collections.Range
 import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple4Semigroupal, showInterpolator}
 import com.comcast.ip4s.{Host, Port}
 import com.monovore.decline.{Argument, Opts}
-import es.eriktorr.realworld.shared.Secret
-import io.github.iltotore.iron.refine
+import io.github.iltotore.iron.autoRefine
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -38,7 +38,7 @@ object RealWorldConfig:
       (
         Opts
           .env[JwtIssuer](name = "REALWORLD_JWT_ISSUER", help = "Set JWT issuer.")
-          .withDefault(JwtIssuer("RealWorld Service".refine)),
+          .withDefault(JwtIssuer("RealWorld Service")),
         Opts
           .env[JwtSecret](name = "REALWORLD_JWT_SECRET", help = "Set JWT secret.")
           .map(Secret.apply[JwtSecret]),

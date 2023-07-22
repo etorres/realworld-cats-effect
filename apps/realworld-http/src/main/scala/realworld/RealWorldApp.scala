@@ -4,6 +4,7 @@ package realworld
 import realworld.adapter.persistence.PostgresUsersRepository
 import realworld.application.{HttpServer, RealWorldConfig, RealWorldHttpApp, RealWorldParams}
 import realworld.domain.service.{AuthService, UsersService}
+import realworld.shared.ConsoleLogger
 import realworld.shared.adapter.persistence.JdbcTransactor
 import realworld.shared.adapter.rest.{HealthService, MetricsService, ServiceName, TraceService}
 
@@ -11,7 +12,7 @@ import cats.effect.{ExitCode, IO, Resource}
 import cats.implicits.{catsSyntaxTuple2Semigroupal, showInterpolator}
 import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
-import io.github.iltotore.iron.refine
+import io.github.iltotore.iron.autoRefine
 import org.http4s.server.middleware.{MaxActiveRequests, Timeout}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -27,11 +28,12 @@ object RealWorldApp extends CommandIOApp(name = "realworld-http", header = "Real
     given SelfAwareStructuredLogger[IO] = logger
     _ <- logger.info(show"Starting HTTP server with configuration: $config")
     _ <- (for
+      consoleLogger <- ConsoleLogger.resource
       transactor <- JdbcTransactor(config.jdbcConfig).transactorResource
       authService = AuthService.impl(config.securityConfig)
       usersRepository = PostgresUsersRepository(transactor)
       usersService = UsersService(authService, usersRepository)
-      serviceName = ServiceName("RealWorld".refine)
+      serviceName = ServiceName("RealWorld")
       healthService <- HealthService.resourceWith(config.healthConfig, serviceName)
       metricsService <- MetricsService.resourceWith("http4s_server")
       traceService <- TraceService.resourceWith(serviceName)

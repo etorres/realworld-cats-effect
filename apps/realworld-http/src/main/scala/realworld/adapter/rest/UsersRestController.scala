@@ -32,7 +32,7 @@ final class UsersRestController(usersService: UsersService)(using
       val context = requestId.fold(Map.empty)(value => Map("http.request.id" -> value))
       error match
         case accessForbidden: AccessForbidden =>
-          logger.error(context)("Unauthorized access") *> Forbidden()
+          logger.error(context, accessForbidden)("Unauthorized access") *> Forbidden()
         case other =>
           logger.error(context, other)(
             "Unhandled error raised while handling request",
