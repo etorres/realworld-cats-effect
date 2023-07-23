@@ -3,10 +3,10 @@ package realworld.domain.model
 
 import realworld.domain.model.User.Username
 import realworld.shared.Secret
-import realworld.shared.data.error.ValidationError
 import realworld.shared.data.refined.Constraints.NonEmptyString
 import realworld.shared.data.validated.ValidatedNecExtensions.{validatedNecTo, AllErrorsOr}
 
+import io.circe.{Decoder, Encoder}
 import io.github.iltotore.iron.*
 import io.github.iltotore.iron.cats.*
 
@@ -23,11 +23,11 @@ final case class User(
 object User:
   opaque type Username <: String :| NonEmptyString = String :| NonEmptyString
   object Username:
-    def from(value: String): AllErrorsOr[Username] =
-      value.refineValidatedNec[NonEmptyString].leftMap(_.map(InvalidUsername.apply))
+    def from(value: String): AllErrorsOr[Username] = value.refineValidatedNec[NonEmptyString]
 
     def unsafeFrom(value: String): Username = from(value).orFail
 
-    sealed abstract class UsernameValidationError(message: String) extends ValidationError(message)
+    given usernameDecoder: Decoder[Username] =
+      Decoder.decodeString.emap(Username.from(_).eitherMessage)
 
-    final case class InvalidUsername(message: String) extends UsernameValidationError(message)
+    given usernameEncoder: Encoder[Username] = Encoder.encodeString.contramap[Username](identity)

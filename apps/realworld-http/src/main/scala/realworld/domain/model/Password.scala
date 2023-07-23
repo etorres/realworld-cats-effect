@@ -3,7 +3,6 @@ package realworld.domain.model
 
 import realworld.domain.model.Password.Format
 import realworld.shared.Secret
-import realworld.shared.data.error.ValidationError
 import realworld.shared.data.validated.ValidatedNecExtensions.{validatedNecTo, AllErrorsOr}
 
 import cats.implicits.catsSyntaxValidatedIdBinCompat0
@@ -27,17 +26,11 @@ object Password:
     case t if t == typeName[CipherText] =>
       if value.length == 159 && value.startsWith(argon2Signature) then
         Password(Secret(value)).validNec
-      else InvalidPasswordFormat.invalidNec
-    case _ => UnsupportedPasswordType.invalidNec
+      else "Invalid password format".invalidNec
+    case _ => "Unsupported password type".invalidNec
 
   def unsafeFrom[A <: Format](value: String)(using typeNameA: TypeName[A]): Password[A] =
     from[A](value).orFail
-
-  sealed abstract class PasswordValidationError(message: String) extends ValidationError(message)
-
-  case object InvalidPasswordFormat extends PasswordValidationError("Invalid password format")
-
-  case object UnsupportedPasswordType extends PasswordValidationError("Unsupported password type")
 
   def cipher(password: Password[ClearText]): AllErrorsOr[Password[CipherText]] =
     Password.from[CipherText](

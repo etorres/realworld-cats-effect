@@ -1,13 +1,14 @@
 package es.eriktorr
 package realworld.adapter.rest
 
-import realworld.adapter.rest.request.UserLoginRequest
+import realworld.adapter.rest.request.{InvalidRequest, UserLoginRequest}
 import realworld.adapter.rest.response.UserResponse
 import realworld.domain.service.UsersService
 import realworld.domain.service.UsersService.AccessForbidden
 import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
 
 import cats.effect.IO
+import cats.implicits.catsSyntaxMonadError
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.dsl.io.*
 import org.http4s.{HttpRoutes, Request, Response}
@@ -20,10 +21,13 @@ final class UsersRestController(usersService: UsersService)(using
   val routes: HttpRoutes[IO] = HttpRoutes.of[IO]:
     case request @ POST -> Root / "users" / "login" =>
       (for
-        userLoginRequest <- request.as[UserLoginRequest]
-        credentials <- userLoginRequest.toCredentials.validated
+        credentials <- request
+          .as[UserLoginRequest]
+          .flatMap(_.toCredentials.validated)
+          .adaptError:
+            case error => InvalidRequest(error)
         user <- usersService.loginUserIdentifiedBy(credentials)
-        response <- Ok(UserResponse.from(user))
+        response <- Ok(UserResponse(user))
       yield response).handleErrorWith(contextFrom(request))
 
   private def contextFrom(request: Request[IO]): Throwable => IO[Response[IO]] =
@@ -32,7 +36,8 @@ final class UsersRestController(usersService: UsersService)(using
       val context = requestId.fold(Map.empty)(value => Map("http.request.id" -> value))
       error match
         case accessForbidden: AccessForbidden =>
-          logger.error(context, accessForbidden)("Unauthorized access") *> Forbidden()
+          logger.error(context, accessForbidden)("Access forbidden") *> Forbidden()
+        case _: InvalidRequest => BadRequest()
         case other =>
           logger.error(context, other)(
             "Unhandled error raised while handling request",

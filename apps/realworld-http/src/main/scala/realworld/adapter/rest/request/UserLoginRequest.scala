@@ -7,7 +7,6 @@ import realworld.domain.model.{Credentials, Email, Password}
 import realworld.shared.Secret
 import realworld.shared.data.validated.ValidatedNecExtensions.AllErrorsOr
 
-import cats.data.Validated
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
@@ -24,12 +23,9 @@ object UserLoginRequest:
 
   extension (request: UserLoginRequest)
     def toCredentials: AllErrorsOr[Credentials] =
-      (Email.from(request.user.email), Password.from[ClearText](request.user.password.value)).mapN {
-        case (email, password) =>
+      (Email.from(request.user.email), Password.from[ClearText](request.user.password.value))
+        .mapN { case (email, password) =>
           request
             .into[Credentials]
-            .transform(
-              Field.const(_.email, email),
-              Field.const(_.password, password),
-            )
-      }
+            .transform(Field.const(_.email, email), Field.const(_.password, password))
+        }
