@@ -57,7 +57,8 @@ object RealWorldHttpAppSuite:
       .traverse { case (email, token) =>
         for
           password <- passwordGen
-          userWithPassword <- userWithPasswordGen(userGen(email, Some(token)), password)
+          user <- userGen(email, Some(token))
+          userWithPassword <- userWithPasswordGen(user, password)
         yield TestUser(password, userWithPassword)
       }
     allUsers = selectedUser :: otherUsers

@@ -47,6 +47,6 @@ object AuthService:
 
     override def verify(token: Token): IO[Email] = for
       decodedJwt <- IO.delay(verifier.verify(token.value.value))
-      claim = decodedJwt.getClaim(claimName).toString
+      claim = decodedJwt.getClaim(claimName).asString
       email <- Email.from(claim).validated
     yield email
