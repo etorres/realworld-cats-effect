@@ -56,15 +56,15 @@ object RealWorldHttpAppSuiteRunner:
       RealWorldHttpApp(healthService, metricsService, traceService, usersService).httpApp
     result <- (for
       response <- httpApp.run(request)
-      _ <- IO.fromOption(for
-        requestId <- response.attributes.lookup(RequestId.requestIdAttrKey)
-        _ <- requestId.refineOption[ValidUUID]
-      yield ())(IllegalStateException("Request Id not found"))
       status = response.status
       body <- status match
         case Status.Ok => response.as[A]
         case other =>
           IO.raiseError(IllegalStateException(s"Unexpected response status: ${other.code}"))
+      _ <- IO.fromOption(for
+        requestId <- response.attributes.lookup(RequestId.requestIdAttrKey)
+        _ <- requestId.refineOption[ValidUUID]
+      yield ())(IllegalStateException("Request Id not found"))
     yield (body, status)).attempt
     finalAuthServiceState <- authServiceStateRef.get
     finalHealthServiceState <- healthServiceStateRef.get

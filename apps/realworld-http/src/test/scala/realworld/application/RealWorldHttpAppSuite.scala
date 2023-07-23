@@ -29,7 +29,7 @@ final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectS
       given Decoder[UserLoginResponse] = UserLoginResponse.userLoginResponseDecoder
       (for (result, finalState) <- runWith(
           testCase.initialState,
-          Request(method = Method.POST, uri = uri"/api/user/login").withEntity(testCase.request),
+          Request(method = Method.POST, uri = uri"/api/users/login").withEntity(testCase.request),
         )
       yield (result, finalState)).map { case (result, finalState) =>
         assertEquals(finalState, testCase.expectedState)
@@ -77,7 +77,7 @@ object RealWorldHttpAppSuite:
     request = UserLoginRequest(
       UserLoginRequest.User(
         selectedUser.userWithPassword.user.email,
-        Secret(selectedUser.password.toString),
+        Secret(selectedUser.password.value.value),
       ),
     )
     expectedResponse = (UserLoginResponse(selectedUser.userWithPassword.user), Status.Ok)
