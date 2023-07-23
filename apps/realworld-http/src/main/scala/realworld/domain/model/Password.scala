@@ -5,6 +5,7 @@ import realworld.domain.model.Password.Format
 import realworld.shared.Secret
 import realworld.shared.data.validated.ValidatedNecExtensions.{validatedNecTo, AllErrorsOr}
 
+import cats.Show
 import cats.implicits.catsSyntaxValidatedIdBinCompat0
 import com.password4j.types.Argon2
 import com.password4j.{Argon2Function, Password as Password4j}
@@ -31,6 +32,8 @@ object Password:
 
   def unsafeFrom[A <: Format](value: String)(using typeNameA: TypeName[A]): Password[A] =
     from[A](value).orFail
+
+  given passwordShow[A <: Format]: Show[Password[A]] = Show.fromToString
 
   def cipher(password: Password[ClearText]): AllErrorsOr[Password[CipherText]] =
     Password.from[CipherText](

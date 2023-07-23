@@ -15,7 +15,7 @@ import io.github.arainko.ducktape.*
 final case class UserLoginRequest(user: User)
 
 object UserLoginRequest:
-  final private[request] case class User(email: String, password: Secret[String])
+  final case class User(email: String, password: Secret[String])
 
   given userLoginRequestJsonDecoder: Decoder[UserLoginRequest] = deriveDecoder
 

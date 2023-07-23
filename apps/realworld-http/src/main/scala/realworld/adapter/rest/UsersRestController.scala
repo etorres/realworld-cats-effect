@@ -2,7 +2,7 @@ package es.eriktorr
 package realworld.adapter.rest
 
 import realworld.adapter.rest.request.{InvalidRequest, UserLoginRequest}
-import realworld.adapter.rest.response.UserResponse
+import realworld.adapter.rest.response.UserLoginResponse
 import realworld.domain.service.UsersService
 import realworld.domain.service.UsersService.AccessForbidden
 import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
@@ -27,7 +27,7 @@ final class UsersRestController(usersService: UsersService)(using
           .adaptError:
             case error => InvalidRequest(error)
         user <- usersService.loginUserIdentifiedBy(credentials)
-        response <- Ok(UserResponse(user))
+        response <- Ok(UserLoginResponse(user))
       yield response).handleErrorWith(contextFrom(request))
 
   private def contextFrom(request: Request[IO]): Throwable => IO[Response[IO]] =
