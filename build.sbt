@@ -117,7 +117,7 @@ lazy val baseSettings: Project => Project = _.settings(
     "REALWORLD_JDBC_PASSWORD" -> "database_password",
     "REALWORLD_JDBC_USERNAME" -> "database_username",
     "REALWORLD_JWT_ISSUER" -> "jwt_issuer",
-    "REALWORLD_JWT_Secret" -> "jwt_secret",
+    "REALWORLD_JWT_SECRET" -> "jwt_secret",
   ),
   Test / testFrameworks += MUnitFramework,
   Test / testOptions += Tests.Argument(MUnitFramework, "--exclude-tags=online"),

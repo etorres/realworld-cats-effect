@@ -18,5 +18,5 @@ final class PasswordSuite extends ScalaCheckSuite:
   property("ciphering is verifiable"):
     forAll(alphaNumericStringBetween(3, 128)): text =>
       val password = Password.unsafeFrom[ClearText](text)
-      val hash = Password.cipher(password).toOption.get
-      Password.check(password, hash)
+      val hash = Password.cipher(password)
+      hash.map(Password.check(password, _)).isValid

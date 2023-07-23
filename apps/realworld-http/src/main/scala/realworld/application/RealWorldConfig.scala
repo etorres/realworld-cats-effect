@@ -100,6 +100,6 @@ object RealWorldConfig:
           name = "REALWORLD_JDBC_USERNAME",
           help = "Set JDBC Username.",
         ),
-      ).mapN(JdbcConfig.mysql)
+      ).mapN(JdbcConfig.postgresql)
 
     (healthConfig, httpServerConfig, jdbcConfig, securityConfig).mapN(RealWorldConfig.apply)
