@@ -18,7 +18,7 @@ final case class User(
     email: Email,
     token: Option[Token],
     username: Username,
-    bio: String,
+    bio: Option[String],
     image: Option[URI],
 )
 

@@ -34,7 +34,10 @@ object RealWorldGenerators:
       email <- emailGen
       token <- tokenGen
       username <- alphaNumericStringBetween(3, 12).map(Username.unsafeFrom)
-      bio <- alphaNumericStringShorterThan(24)
+      bio <- Gen.frequency(
+        1 -> Gen.some(alphaNumericStringShorterThan(24)),
+        1 -> Option.empty[String],
+      )
       image <- Gen.frequency(1 -> Gen.some(uriGen()), 1 -> Option.empty[URI])
     yield User(email, token, username, bio, image)
 
