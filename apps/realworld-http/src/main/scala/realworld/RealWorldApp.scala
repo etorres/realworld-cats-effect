@@ -5,7 +5,7 @@ import realworld.adapter.persistence.PostgresUsersRepository
 import realworld.application.{HttpServer, RealWorldConfig, RealWorldHttpApp, RealWorldParams}
 import realworld.domain.service.{AuthService, UsersService}
 import realworld.shared.ConsoleLogger
-import realworld.shared.adapter.persistence.JdbcTransactor
+import realworld.shared.adapter.persistence.{JdbcMigrator, JdbcTransactor}
 import realworld.shared.adapter.rest.{HealthService, MetricsService, ServiceName, TraceService}
 
 import cats.effect.{ExitCode, IO, Resource}
@@ -27,9 +27,10 @@ object RealWorldApp extends CommandIOApp(name = "realworld-http", header = "Real
     logger <- Slf4jLogger.create[IO]
     given SelfAwareStructuredLogger[IO] = logger
     _ <- logger.info(show"Starting HTTP server with configuration: $config")
+    _ <- JdbcMigrator(config.jdbcConfig).migrate
     _ <- (for
       consoleLogger <- ConsoleLogger.resource
-      transactor <- JdbcTransactor(config.jdbcConfig).transactorResource
+      transactor <- JdbcTransactor(config.jdbcConfig).resource
       authService = AuthService.impl(config.securityConfig)
       usersRepository = PostgresUsersRepository(transactor)
       usersService = UsersService(authService, usersRepository)
