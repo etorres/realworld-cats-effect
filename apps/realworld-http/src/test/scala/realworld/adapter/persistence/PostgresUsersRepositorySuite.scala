@@ -18,10 +18,10 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
     forAllF(testCaseGen): testCase =>
       testTransactor.resource.use: transactor =>
         val testRepository = PostgresUsersTestRepository(transactor)
-        val repository = PostgresUsersRepository(transactor)
+        val usersRepository = PostgresUsersRepository(transactor)
         (for
           _ <- testCase.rows.traverse_(testRepository.add)
-          obtained <- repository.findUserWithPasswordBy(testCase.email)
+          obtained <- usersRepository.findUserWithPasswordBy(testCase.email)
         yield obtained).assertEquals(testCase.expected)
 
 object PostgresUsersRepositorySuite:
