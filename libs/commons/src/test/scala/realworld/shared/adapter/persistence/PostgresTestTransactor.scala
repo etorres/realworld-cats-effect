@@ -17,7 +17,8 @@ final class PostgresTestTransactor(jdbcTestConfig: JdbcTestConfig)(using logger:
       tableNames <-
         sql"""select table_name
              |from information_schema.tables
-             |where table_schema='public'""".stripMargin.query[String].to[List]
+             |where table_schema='public'
+             | and table_name not like 'flyway_%'""".stripMargin.query[String].to[List]
       _ <- tableNames
         .map(tableName => Fragment.const(s"truncate table $tableName"))
         .traverse_(_.update.run)

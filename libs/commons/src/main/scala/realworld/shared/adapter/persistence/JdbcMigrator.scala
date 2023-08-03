@@ -15,14 +15,14 @@ final class JdbcMigrator(dataSource: DataSource)(using logger: Logger[IO]):
   import scala.language.unsafeNulls
 
   def migrate: IO[Unit] =
-    IO.blocking(
-      Flyway
+    IO.blocking {
+      val flyway = Flyway
         .configure()
         .dataSource(dataSource)
         .failOnMissingLocations(true)
         .load()
-        .migrate(),
-    ).flatMap:
+      flyway.migrate()
+    }.flatMap:
       case errorResult: MigrateErrorResult => IO.raiseError(MigrationFailed(errorResult))
       case other => IO.unit
     .handleErrorWith: error =>

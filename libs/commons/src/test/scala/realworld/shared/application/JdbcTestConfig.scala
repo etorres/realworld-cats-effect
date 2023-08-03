@@ -13,7 +13,7 @@ enum JdbcTestConfig(val config: JdbcConfig, val database: String):
         JdbcConfig.postgresql(
           Range(1, 3),
           ConnectUrl(
-            s"jdbc:postgresql://${JdbcTestConfig.host}/${JdbcTestConfig.database}?${JdbcTestConfig.params}".refine,
+            s"jdbc:postgresql://${JdbcTestConfig.host}/${JdbcTestConfig.database}".refine,
           ),
           Secret(Password("changeMe")),
           Username("test"),
@@ -23,5 +23,4 @@ enum JdbcTestConfig(val config: JdbcConfig, val database: String):
 
 object JdbcTestConfig:
   final private val host = "postgres.test:5432"
-  final private val params = "application_name=test"
   final private val database = "realworld"
