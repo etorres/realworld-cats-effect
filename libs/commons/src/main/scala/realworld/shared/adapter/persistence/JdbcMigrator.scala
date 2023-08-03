@@ -2,22 +2,23 @@ package es.eriktorr
 package realworld.shared.adapter.persistence
 
 import realworld.shared.adapter.persistence.JdbcMigrator.MigrationFailed
-import realworld.shared.application.JdbcConfig
 import realworld.shared.data.error.HandledError
 
 import cats.effect.IO
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.output.MigrateErrorResult
-import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.Logger
 
-final class JdbcMigrator(jdbcConfig: JdbcConfig)(using logger: SelfAwareStructuredLogger[IO]):
+import javax.sql.DataSource
+
+final class JdbcMigrator(dataSource: DataSource)(using logger: Logger[IO]):
   import scala.language.unsafeNulls
 
   def migrate: IO[Unit] =
     IO.blocking(
       Flyway
         .configure()
-        .dataSource(jdbcConfig.connectUrl, jdbcConfig.username, jdbcConfig.password.value)
+        .dataSource(dataSource)
         .failOnMissingLocations(true)
         .load()
         .migrate(),

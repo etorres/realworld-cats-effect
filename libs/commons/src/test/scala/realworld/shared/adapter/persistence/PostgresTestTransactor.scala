@@ -8,8 +8,9 @@ import cats.implicits.toFoldableOps
 import doobie.Fragment
 import doobie.hikari.HikariTransactor
 import doobie.implicits.*
+import org.typelevel.log4cats.Logger
 
-final class PostgresTestTransactor(jdbcTestConfig: JdbcTestConfig):
+final class PostgresTestTransactor(jdbcTestConfig: JdbcTestConfig)(using logger: Logger[IO]):
   val resource: Resource[IO, HikariTransactor[IO]] = for
     transactor <- JdbcTransactor(jdbcTestConfig.config).resource
     _ <- Resource.eval((for
