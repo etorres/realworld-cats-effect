@@ -99,6 +99,7 @@ lazy val baseSettings: Project => Project = _.settings(
   Test / compile / wartremoverErrors ++= warts,
   libraryDependencies ++= Seq(
     "com.47deg" %% "scalacheck-toolbox-datetime" % "0.7.0" % Test,
+    "com.softwaremill.diffx" %% "diffx-munit" % "0.8.3" % Test,
     "io.chrisdavenport" %% "cats-scalacheck" % "0.3.2" % Test,
     "org.scalameta" %% "munit" % "0.7.29" % Test,
     "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,

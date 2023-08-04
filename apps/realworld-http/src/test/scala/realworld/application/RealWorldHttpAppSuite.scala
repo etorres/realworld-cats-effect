@@ -8,6 +8,7 @@ import realworld.application.RealWorldHttpAppSuite.{
   successfulUserRegistrationGen,
 }
 import realworld.application.RealWorldHttpAppSuiteRunner.{runWith, RealWorldHttpAppState}
+import realworld.application.UsersDiffIgnoringPassword.given
 import realworld.domain.model.Password.ClearText
 import realworld.domain.model.RealWorldGenerators.*
 import realworld.domain.model.{Password, User, UserWithPassword}
@@ -15,13 +16,15 @@ import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
 import realworld.shared.spec.CollectionGenerators.nDistinct
 
 import cats.implicits.toTraverseOps
+import com.softwaremill.diffx.Diff
+import com.softwaremill.diffx.munit.DiffxAssertions.assertEqual
 import io.circe.Decoder
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.implicits.uri
 import org.http4s.{Method, Request, Status}
 import org.scalacheck.Gen
-import org.scalacheck.cats.implicits.*
+import org.scalacheck.cats.implicits.genInstances
 import org.scalacheck.effect.PropF.forAllF
 
 final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectSuite:
@@ -33,8 +36,8 @@ final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectS
           Request(method = Method.POST, uri = uri"/api/users/login").withEntity(testCase.request),
         )
       yield (result, finalState)).map { case (result, finalState) =>
-        assertEquals(finalState, testCase.expectedState)
         assertEquals(result, Right(testCase.expectedResponse))
+        assertEquals(finalState, testCase.expectedState)
       }
 
   test("should register a new user"):
@@ -46,8 +49,15 @@ final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectS
           Request(method = Method.POST, uri = uri"/api/users").withEntity(testCase.request),
         )
       yield (result, finalState)).map { case (result, finalState) =>
-        assertEquals(finalState, testCase.expectedState)
         assertEquals(result, Right(testCase.expectedResponse))
+        assertEqual(
+          finalState.usersRepositoryState.users,
+          testCase.expectedState.usersRepositoryState.users,
+        )
+        assertEquals(
+          finalState.clearUsersWithPassword,
+          testCase.expectedState.clearUsersWithPassword,
+        )
       }
 
 object RealWorldHttpAppSuite:

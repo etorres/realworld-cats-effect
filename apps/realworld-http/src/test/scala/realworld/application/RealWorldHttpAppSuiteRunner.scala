@@ -24,6 +24,8 @@ object RealWorldHttpAppSuiteRunner:
       healthServiceState: HealthServiceState,
       usersRepositoryState: UsersRepositoryState,
   ):
+    def clearUsersWithPassword: RealWorldHttpAppState =
+      copy(usersRepositoryState = UsersRepositoryState.empty)
     def setTokens(tokens: Map[Email, Token]): RealWorldHttpAppState = copy(
       authServiceState = authServiceState.setTokens(tokens),
     )
