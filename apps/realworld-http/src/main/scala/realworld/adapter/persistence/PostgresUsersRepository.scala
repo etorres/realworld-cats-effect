@@ -8,7 +8,7 @@ import realworld.domain.model.*
 import realworld.domain.model.Password.CipherText
 import realworld.domain.model.User.Username
 import realworld.domain.service.UsersRepository
-import realworld.domain.service.UsersRepository.UniqueViolationError
+import realworld.domain.service.UsersRepository.AlreadyInUseError
 import realworld.shared.Secret
 import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
 
@@ -43,7 +43,7 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
   yield user).adaptError {
     case error: PSQLException if isUniqueViolationError(error) =>
       val serverErrorMessage = error.getServerErrorMessage.nn
-      UniqueViolationError(serverErrorMessage.getConstraint.nn, error)
+      AlreadyInUseError(serverErrorMessage.getConstraint.nn, error)
   }
 
   private def isUniqueViolationError(error: PSQLException) =

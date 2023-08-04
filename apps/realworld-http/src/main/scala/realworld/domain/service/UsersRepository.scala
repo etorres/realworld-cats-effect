@@ -15,5 +15,5 @@ object UsersRepository:
   sealed abstract class UsersRepositoryError(message: String, cause: Option[Throwable])
       extends HandledError(message, cause)
 
-  final case class UniqueViolationError(constraint: String, cause: Throwable)
-      extends UsersRepositoryError(s"Violated constraint: $constraint", Some(cause))
+  final case class AlreadyInUseError(constraint: String, cause: Throwable)
+      extends UsersRepositoryError(s"Given data is already in use: $constraint", Some(cause))

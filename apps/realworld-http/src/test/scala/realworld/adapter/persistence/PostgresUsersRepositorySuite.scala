@@ -13,7 +13,7 @@ import realworld.domain.model.RealWorldGenerators.{
   userWithPasswordGen,
 }
 import realworld.domain.model.{Email, NewUser, User, UserWithPassword}
-import realworld.domain.service.UsersRepository.UniqueViolationError
+import realworld.domain.service.UsersRepository.AlreadyInUseError
 import realworld.shared.spec.CollectionGenerators.nDistinct
 import realworld.shared.spec.PostgresSuite
 
@@ -54,8 +54,8 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
           _ <- testRepository.add(testCase.row)
           obtained <- usersRepository.register(testCase.newUser)
         yield obtained)
-          .interceptMessage[UniqueViolationError](
-            "Violated constraint: users_email_must_be_different",
+          .interceptMessage[AlreadyInUseError](
+            "Given data is already in use: users_email_must_be_different",
           )
           .map(_ => ())
 
@@ -73,8 +73,8 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
           _ <- testRepository.add(testCase.row)
           obtained <- usersRepository.register(testCase.newUser)
         yield obtained)
-          .interceptMessage[UniqueViolationError](
-            "Violated constraint: users_username_must_be_different",
+          .interceptMessage[AlreadyInUseError](
+            "Given data is already in use: users_username_must_be_different",
           )
           .map(_ => ())
 

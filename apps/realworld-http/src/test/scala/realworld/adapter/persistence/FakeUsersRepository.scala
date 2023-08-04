@@ -9,12 +9,16 @@ import cats.effect.{IO, Ref}
 
 final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends UsersRepository:
   override def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword]] =
-    stateRef.get.map(_.users.get(email))
+    stateRef.get.map(_.users.find(_.user.email == email))
 
-  override def register(newUser: NewUser): IO[User] = ???
+  override def register(newUser: NewUser): IO[User] = for
+    user <- IO.pure(User(newUser.email, None, newUser.username, None, None))
+    userWithPassword = UserWithPassword(user, newUser.password)
+    _ <- stateRef.update(currentState => currentState.copy(userWithPassword :: currentState.users))
+  yield user
 
 object FakeUsersRepository:
-  final case class UsersRepositoryState(users: Map[Email, UserWithPassword])
+  final case class UsersRepositoryState(users: List[UserWithPassword])
 
   object UsersRepositoryState:
-    def empty: UsersRepositoryState = UsersRepositoryState(Map.empty)
+    def empty: UsersRepositoryState = UsersRepositoryState(List.empty)

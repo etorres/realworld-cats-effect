@@ -19,7 +19,7 @@ final class UsersService(authService: AuthService, usersRepository: UsersReposit
       else IO.raiseError(AccessForbidden(credentials.email))
   yield user
 
-  def register(newUser: NewUser): IO[User] = ???
+  def register(newUser: NewUser): IO[User] = usersRepository.register(newUser)
 
 object UsersService:
   sealed abstract class UsersServiceError(message: String) extends HandledError(message)

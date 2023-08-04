@@ -27,7 +27,7 @@ object RealWorldHttpAppSuiteRunner:
     def setTokens(tokens: Map[Email, Token]): RealWorldHttpAppState = copy(
       authServiceState = authServiceState.setTokens(tokens),
     )
-    def setUsersWithPassword(users: Map[Email, UserWithPassword]): RealWorldHttpAppState =
+    def setUsersWithPassword(users: List[UserWithPassword]): RealWorldHttpAppState =
       copy(usersRepositoryState = usersRepositoryState.copy(users))
 
   object RealWorldHttpAppState:

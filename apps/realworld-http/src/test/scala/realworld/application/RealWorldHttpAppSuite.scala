@@ -1,14 +1,17 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.adapter.rest.request.LoginUserRequest
-import realworld.adapter.rest.response.LoginUserResponse
-import realworld.application.RealWorldHttpAppSuite.successfulUserLoginGen
+import realworld.adapter.rest.request.{LoginUserRequest, RegisterNewUserRequest}
+import realworld.adapter.rest.response.{LoginUserResponse, RegisterNewUserResponse}
+import realworld.application.RealWorldHttpAppSuite.{
+  successfulUserLoginGen,
+  successfulUserRegistrationGen,
+}
 import realworld.application.RealWorldHttpAppSuiteRunner.{runWith, RealWorldHttpAppState}
 import realworld.domain.model.Password.ClearText
 import realworld.domain.model.RealWorldGenerators.*
 import realworld.domain.model.{Password, User, UserWithPassword}
-import realworld.shared.Secret
+import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
 import realworld.shared.spec.CollectionGenerators.nDistinct
 
 import cats.implicits.toTraverseOps
@@ -21,8 +24,6 @@ import org.scalacheck.Gen
 import org.scalacheck.cats.implicits.*
 import org.scalacheck.effect.PropF.forAllF
 
-import scala.collection.immutable.::
-
 final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectSuite:
   test("should login a user"):
     forAllF(successfulUserLoginGen): testCase =>
@@ -30,6 +31,19 @@ final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectS
       (for (result, finalState) <- runWith(
           testCase.initialState,
           Request(method = Method.POST, uri = uri"/api/users/login").withEntity(testCase.request),
+        )
+      yield (result, finalState)).map { case (result, finalState) =>
+        assertEquals(finalState, testCase.expectedState)
+        assertEquals(result, Right(testCase.expectedResponse))
+      }
+
+  test("should register a new user"):
+    forAllF(successfulUserRegistrationGen): testCase =>
+      given Decoder[RegisterNewUserResponse] =
+        RegisterNewUserResponse.registerNewUserResponseJsonDecoder
+      (for (result, finalState) <- runWith(
+          testCase.initialState,
+          Request(method = Method.POST, uri = uri"/api/users").withEntity(testCase.request),
         )
       yield (result, finalState)).map { case (result, finalState) =>
         assertEquals(finalState, testCase.expectedState)
@@ -71,15 +85,25 @@ object RealWorldHttpAppSuite:
           .collect { case (email, Some(token)) => email -> token }
           .toMap,
       )
-      .setUsersWithPassword(allUsers.map { case TestUser(_, userWithPassword) =>
-        userWithPassword.user.email -> userWithPassword
-      }.toMap)
+      .setUsersWithPassword(allUsers.map { case TestUser(_, userWithPassword) => userWithPassword })
     expectedState = initialState.copy()
     request = LoginUserRequest(
       LoginUserRequest.User(
         selectedUser.userWithPassword.user.email,
-        Secret(selectedUser.password.value.value),
+        selectedUser.password.value,
       ),
     )
     expectedResponse = (LoginUserResponse(selectedUser.userWithPassword.user), Status.Ok)
+  yield TestCase(initialState, expectedState, request, expectedResponse)
+
+  private val successfulUserRegistrationGen = for
+    email <- emailGen
+    password <- passwordGen
+    username <- usernameGen
+    user = User(email, None, username, None, None)
+    userWithPassword = UserWithPassword(user, Password.cipher(password).orFail)
+    initialState = RealWorldHttpAppState.empty
+    expectedState = initialState.setUsersWithPassword(List(userWithPassword))
+    request = RegisterNewUserRequest(RegisterNewUserRequest.User(email, password.value, username))
+    expectedResponse = (RegisterNewUserResponse(user), Status.Ok)
   yield TestCase(initialState, expectedState, request, expectedResponse)
