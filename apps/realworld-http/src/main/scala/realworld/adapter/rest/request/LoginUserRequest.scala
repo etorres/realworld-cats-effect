@@ -1,7 +1,7 @@
 package es.eriktorr
 package realworld.adapter.rest.request
 
-import realworld.adapter.rest.request.UserLoginRequest.User
+import realworld.adapter.rest.request.LoginUserRequest.User
 import realworld.domain.model.Password.ClearText
 import realworld.domain.model.{Credentials, Email, Password}
 import realworld.shared.Secret
@@ -12,16 +12,16 @@ import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
 import io.github.arainko.ducktape.*
 
-final case class UserLoginRequest(user: User)
+final case class LoginUserRequest(user: User)
 
-object UserLoginRequest:
+object LoginUserRequest:
   final case class User(email: String, password: Secret[String])
 
-  given userLoginRequestJsonDecoder: Decoder[UserLoginRequest] = deriveDecoder
+  given loginUserRequestJsonDecoder: Decoder[LoginUserRequest] = deriveDecoder
 
-  given userLoginRequestJsonEncoder: Encoder[UserLoginRequest] = deriveEncoder
+  given loginUserRequestJsonEncoder: Encoder[LoginUserRequest] = deriveEncoder
 
-  extension (request: UserLoginRequest)
+  extension (request: LoginUserRequest)
     def toCredentials: AllErrorsOr[Credentials] =
       (Email.from(request.user.email), Password.from[ClearText](request.user.password.value))
         .mapN { case (email, password) =>

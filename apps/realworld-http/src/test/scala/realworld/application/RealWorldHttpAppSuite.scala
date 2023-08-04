@@ -1,8 +1,8 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.adapter.rest.request.UserLoginRequest
-import realworld.adapter.rest.response.UserLoginResponse
+import realworld.adapter.rest.request.LoginUserRequest
+import realworld.adapter.rest.response.LoginUserResponse
 import realworld.application.RealWorldHttpAppSuite.successfulUserLoginGen
 import realworld.application.RealWorldHttpAppSuiteRunner.{runWith, RealWorldHttpAppState}
 import realworld.domain.model.Password.ClearText
@@ -26,7 +26,7 @@ import scala.collection.immutable.::
 final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectSuite:
   test("should login a user"):
     forAllF(successfulUserLoginGen): testCase =>
-      given Decoder[UserLoginResponse] = UserLoginResponse.userLoginResponseDecoder
+      given Decoder[LoginUserResponse] = LoginUserResponse.loginUserResponseJsonDecoder
       (for (result, finalState) <- runWith(
           testCase.initialState,
           Request(method = Method.POST, uri = uri"/api/users/login").withEntity(testCase.request),
@@ -75,11 +75,11 @@ object RealWorldHttpAppSuite:
         userWithPassword.user.email -> userWithPassword
       }.toMap)
     expectedState = initialState.copy()
-    request = UserLoginRequest(
-      UserLoginRequest.User(
+    request = LoginUserRequest(
+      LoginUserRequest.User(
         selectedUser.userWithPassword.user.email,
         Secret(selectedUser.password.value.value),
       ),
     )
-    expectedResponse = (UserLoginResponse(selectedUser.userWithPassword.user), Status.Ok)
+    expectedResponse = (LoginUserResponse(selectedUser.userWithPassword.user), Status.Ok)
   yield TestCase(initialState, expectedState, request, expectedResponse)

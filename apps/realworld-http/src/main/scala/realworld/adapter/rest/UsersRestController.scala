@@ -1,8 +1,8 @@
 package es.eriktorr
 package realworld.adapter.rest
 
-import realworld.adapter.rest.request.{InvalidRequest, UserLoginRequest}
-import realworld.adapter.rest.response.UserLoginResponse
+import realworld.adapter.rest.request.{InvalidRequest, LoginUserRequest, RegisterNewUserRequest}
+import realworld.adapter.rest.response.LoginUserResponse
 import realworld.domain.service.UsersService
 import realworld.domain.service.UsersService.AccessForbidden
 import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
@@ -19,15 +19,22 @@ final class UsersRestController(usersService: UsersService)(using
     logger: SelfAwareStructuredLogger[IO],
 ):
   val routes: HttpRoutes[IO] = HttpRoutes.of[IO]:
+    case request @ POST -> Root / "users" =>
+      (for
+        _ <- request.as[RegisterNewUserRequest]
+        // TODO
+        response <- Ok()
+      yield response).handleErrorWith(contextFrom(request))
+
     case request @ POST -> Root / "users" / "login" =>
       (for
         credentials <- request
-          .as[UserLoginRequest]
+          .as[LoginUserRequest]
           .flatMap(_.toCredentials.validated)
           .adaptError:
             case error => InvalidRequest(error)
         user <- usersService.loginUserIdentifiedBy(credentials)
-        response <- Ok(UserLoginResponse(user))
+        response <- Ok(LoginUserResponse(user))
       yield response).handleErrorWith(contextFrom(request))
 
   private def contextFrom(request: Request[IO]): Throwable => IO[Response[IO]] =

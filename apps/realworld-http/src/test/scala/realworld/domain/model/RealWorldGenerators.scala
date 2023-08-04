@@ -25,20 +25,23 @@ object RealWorldGenerators:
 
   val tokenGen: Gen[Token] = alphaNumericStringBetween(3, 12).map(Token.unsafeFrom)
 
+  val usernameGen: Gen[Username] = alphaNumericStringBetween(3, 12).map(Username.unsafeFrom)
+
   def userGen(
       emailGen: Gen[Email] = emailGen,
       tokenGen: Gen[Option[Token]] =
         Gen.frequency(1 -> Gen.some(tokenGen), 1 -> Option.empty[Token]),
+      usernameGen: Gen[Username] = usernameGen,
+      bioGen: Gen[Option[String]] =
+        Gen.frequency(1 -> Gen.some(alphaNumericStringShorterThan(24)), 1 -> Option.empty[String]),
+      imageGen: Gen[Option[URI]] = Gen.frequency(1 -> Gen.some(uriGen()), 1 -> Option.empty[URI]),
   ): Gen[User] =
     for
       email <- emailGen
       token <- tokenGen
-      username <- alphaNumericStringBetween(3, 12).map(Username.unsafeFrom)
-      bio <- Gen.frequency(
-        1 -> Gen.some(alphaNumericStringShorterThan(24)),
-        1 -> Option.empty[String],
-      )
-      image <- Gen.frequency(1 -> Gen.some(uriGen()), 1 -> Option.empty[URI])
+      username <- usernameGen
+      bio <- bioGen
+      image <- imageGen
     yield User(email, token, username, bio, image)
 
   def userWithPasswordGen(

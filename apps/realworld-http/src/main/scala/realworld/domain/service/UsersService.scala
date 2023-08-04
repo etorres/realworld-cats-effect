@@ -1,7 +1,7 @@
 package es.eriktorr
 package realworld.domain.service
 
-import realworld.domain.model.{Credentials, Email, Password, User}
+import realworld.domain.model.{Credentials, Email, NewUser, Password, User}
 import realworld.domain.service.UsersService.AccessForbidden
 import realworld.shared.data.error.HandledError
 
@@ -18,6 +18,8 @@ final class UsersService(authService: AuthService, usersRepository: UsersReposit
           .map(token => userWithPassword.user.copy(token = Some(token)))
       else IO.raiseError(AccessForbidden(credentials.email))
   yield user
+
+  def register(newUser: NewUser): IO[User] = ???
 
 object UsersService:
   sealed abstract class UsersServiceError(message: String) extends HandledError(message)
