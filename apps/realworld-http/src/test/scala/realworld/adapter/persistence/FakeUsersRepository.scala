@@ -8,6 +8,11 @@ import realworld.domain.service.UsersRepository
 import cats.effect.{IO, Ref}
 
 final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends UsersRepository:
+  override def findUserBy(email: Email): IO[Option[User]] = for {
+    maybeUserWithPassword <- findUserWithPasswordBy(email)
+    user = maybeUserWithPassword.map(_.user)
+  } yield user
+
   override def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword]] =
     stateRef.get.map(_.users.find(_.user.email == email))
 

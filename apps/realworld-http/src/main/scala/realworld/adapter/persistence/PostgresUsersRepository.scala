@@ -20,16 +20,24 @@ import doobie.implicits.*
 import org.postgresql.util.{PSQLException, PSQLState}
 
 final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends UsersRepository:
+  override def findUserBy(email: Email): IO[Option[User]] = for
+    userRow <- findBy(email)
+    user <- userRow.traverse(_.toUser.validated)
+  yield user
+
   override def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword]] = for
-    userRow <- sql"""select
-                    |  user_id, email, username, password, bio, image
-                    |from users
-                    |where email = $email""".stripMargin
+    userRow <- findBy(email)
+    userWithPassword <- userRow.traverse(_.toUserWithPassword.validated)
+  yield userWithPassword
+
+  private def findBy(email: Email): IO[Option[UserRow]] =
+    sql"""select
+         |  user_id, email, username, password, bio, image
+         |from users
+         |where email = $email""".stripMargin
       .query[UserRow]
       .option
       .transact(transactor)
-    userWithPassword <- userRow.traverse(_.toUserWithPassword.validated)
-  yield userWithPassword
 
   override def register(newUser: NewUser): IO[User] = (for
     _ <- sql"""insert into users (

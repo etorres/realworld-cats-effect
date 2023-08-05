@@ -36,4 +36,9 @@ final class UsersRestController(authService: AuthService, usersService: UsersSer
       yield response).handleErrorWith(contextFrom(request))
 
   val routes: HttpRoutes[IO] =
-    publicRoutes <+> jwtAuthMiddleware[Email](authService.verify)(secureRoutes)
+    publicRoutes <+> jwtAuthMiddleware[Email](token =>
+      for
+        email <- authService.verify(token)
+        _ = println("")
+      yield email,
+    )(secureRoutes)

@@ -8,7 +8,7 @@ import realworld.shared.Secret
 import realworld.shared.data.refined.StringExtensions.toUri
 import realworld.shared.data.validated.ValidatedNecExtensions.AllErrorsOr
 
-import cats.implicits.{catsSyntaxTuple4Semigroupal, toTraverseOps}
+import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple3Semigroupal, toTraverseOps}
 import io.github.arainko.ducktape.*
 
 final case class UserRow(
@@ -22,20 +22,18 @@ final case class UserRow(
 
 object UserRow:
   extension (userRow: UserRow)
+    def toUser: AllErrorsOr[User] =
+      (Email.from(userRow.email), Username.from(userRow.username), userRow.image.traverse(_.toUri))
+        .mapN { case (email, username, image) =>
+          userRow
+            .into[User]
+            .transform(
+              Field.const(_.email, email),
+              Field.const(_.token, Option.empty[Token]),
+              Field.const(_.username, username),
+              Field.const(_.image, image),
+            )
+        }
+
     def toUserWithPassword: AllErrorsOr[UserWithPassword] =
-      (
-        Email.from(userRow.email),
-        Username.from(userRow.username),
-        Password.from[CipherText](userRow.password.value),
-        userRow.image.traverse(_.toUri),
-      ).mapN { case (email, username, password, image) =>
-        val user = userRow
-          .into[User]
-          .transform(
-            Field.const(_.email, email),
-            Field.const(_.token, Option.empty[Token]),
-            Field.const(_.username, username),
-            Field.const(_.image, image),
-          )
-        UserWithPassword(user, password)
-      }
+      (toUser, Password.from[CipherText](userRow.password.value)).mapN(UserWithPassword.apply)

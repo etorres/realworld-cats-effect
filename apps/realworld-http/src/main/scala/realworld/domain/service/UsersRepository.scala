@@ -7,6 +7,8 @@ import realworld.shared.data.error.HandledError
 import cats.effect.IO
 
 trait UsersRepository:
+  def findUserBy(email: Email): IO[Option[User]]
+
   def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword]]
 
   def register(newUser: NewUser): IO[User]

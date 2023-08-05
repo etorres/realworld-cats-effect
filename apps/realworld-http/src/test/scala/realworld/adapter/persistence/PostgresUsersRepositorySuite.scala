@@ -2,7 +2,7 @@ package es.eriktorr
 package realworld.adapter.persistence
 
 import realworld.adapter.persistence.PostgresUsersRepositorySuite.{
-  loginTestCaseGen,
+  findUserWithPasswordTestCaseGen,
   registerTestCaseGen,
 }
 import realworld.adapter.persistence.row.UserRow
@@ -24,8 +24,18 @@ import org.scalacheck.cats.implicits.genInstances
 import org.scalacheck.effect.PropF.forAllF
 
 final class PostgresUsersRepositorySuite extends PostgresSuite:
+  test("should find a user by email"):
+    forAllF(findUserWithPasswordTestCaseGen): testCase =>
+      testTransactor.resource.use: transactor =>
+        val testRepository = PostgresUsersTestRepository(transactor)
+        val usersRepository = PostgresUsersRepository(transactor)
+        (for
+          _ <- testCase.rows.traverse_(testRepository.add)
+          obtained <- usersRepository.findUserBy(testCase.email)
+        yield obtained).assertEquals(testCase.expected.map(_.user))
+
   test("should find a user with her password by email"):
-    forAllF(loginTestCaseGen): testCase =>
+    forAllF(findUserWithPasswordTestCaseGen): testCase =>
       testTransactor.resource.use: transactor =>
         val testRepository = PostgresUsersTestRepository(transactor)
         val usersRepository = PostgresUsersRepository(transactor)
@@ -87,7 +97,7 @@ object PostgresUsersRepositorySuite:
       rows: List[UserRow],
   )
 
-  private val loginTestCaseGen = for
+  private val findUserWithPasswordTestCaseGen = for
     emails <- nDistinct(7, emailGen)
     userIds <- nDistinct(7, userIdGen)
     selectedEmail :: otherEmails = emails: @unchecked
