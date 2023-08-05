@@ -1,13 +1,20 @@
 package es.eriktorr
 package realworld.domain.service
 
-import realworld.domain.model.{Credentials, Email, NewUser, Password, User}
-import realworld.domain.service.UsersService.AccessForbidden
+import realworld.domain.model.*
+import realworld.domain.service.UsersService.{AccessForbidden, UserNotFound}
 import realworld.shared.data.error.HandledError
 
 import cats.effect.IO
 
 final class UsersService(authService: AuthService, usersRepository: UsersRepository):
+  def findBy(email: Email): IO[User] = for
+    maybeUser <- usersRepository.findUserBy(email)
+    user <- maybeUser match
+      case Some(value) => IO.pure(value)
+      case None => IO.raiseError(UserNotFound(email))
+  yield user
+
   def loginUserIdentifiedBy(credentials: Credentials): IO[User] = for
     maybeUserWithPassword <- usersRepository.findUserWithPasswordBy(credentials.email)
     userWithPassword <- IO.fromOption(maybeUserWithPassword)(AccessForbidden(credentials.email))
@@ -26,3 +33,6 @@ object UsersService:
 
   final case class AccessForbidden(email: Email)
       extends UsersServiceError(s"Access forbidden for user identified by: $email")
+
+  final case class UserNotFound(email: Email)
+      extends UsersServiceError(s"No user found with email: $email")

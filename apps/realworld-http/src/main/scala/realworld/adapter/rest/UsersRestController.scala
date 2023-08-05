@@ -3,8 +3,12 @@ package realworld.adapter.rest
 
 import realworld.adapter.rest.JwtAuthMiddleware.jwtAuthMiddleware
 import realworld.adapter.rest.request.{LoginUserRequest, RegisterNewUserRequest}
-import realworld.adapter.rest.response.{LoginUserResponse, RegisterNewUserResponse}
-import realworld.domain.model.{Credentials, Email, NewUser}
+import realworld.adapter.rest.response.{
+  GetCurrentUserResponse,
+  LoginUserResponse,
+  RegisterNewUserResponse,
+}
+import realworld.domain.model.{Credentials, NewUser, User}
 import realworld.domain.service.{AuthService, UsersService}
 
 import cats.effect.IO
@@ -17,8 +21,9 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 final class UsersRestController(authService: AuthService, usersService: UsersService)(using
     logger: SelfAwareStructuredLogger[IO],
 ) extends BaseRestController:
-  private val secureRoutes = AuthedRoutes.of[Email, IO]:
-    case GET -> Root / "users" as email => ???
+  private val secureRoutes = AuthedRoutes.of[User, IO]:
+    case request @ GET -> Root / "users" as user =>
+      Ok(GetCurrentUserResponse(user)).handleErrorWith(contextFrom(request.req))
 
   private val publicRoutes: HttpRoutes[IO] = HttpRoutes.of[IO]:
     case request @ POST -> Root / "users" =>
@@ -36,9 +41,9 @@ final class UsersRestController(authService: AuthService, usersService: UsersSer
       yield response).handleErrorWith(contextFrom(request))
 
   val routes: HttpRoutes[IO] =
-    publicRoutes <+> jwtAuthMiddleware[Email](token =>
+    publicRoutes <+> jwtAuthMiddleware[User](token =>
       for
         email <- authService.verify(token)
-        _ = println("")
-      yield email,
+        user <- usersService.findBy(email)
+      yield user,
     )(secureRoutes)

@@ -2,8 +2,13 @@ package es.eriktorr
 package realworld.application
 
 import realworld.adapter.rest.request.{LoginUserRequest, RegisterNewUserRequest}
-import realworld.adapter.rest.response.{LoginUserResponse, RegisterNewUserResponse}
+import realworld.adapter.rest.response.{
+  GetCurrentUserResponse,
+  LoginUserResponse,
+  RegisterNewUserResponse,
+}
 import realworld.application.RealWorldHttpAppSuite.{
+  successfulGetCurrentUserGen,
   successfulUserLoginGen,
   successfulUserRegistrationGen,
 }
@@ -20,14 +25,29 @@ import com.softwaremill.diffx.Diff
 import com.softwaremill.diffx.munit.DiffxAssertions.assertEqual
 import io.circe.Decoder
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.http4s.Credentials.Token
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
+import org.http4s.headers.Authorization
 import org.http4s.implicits.uri
-import org.http4s.{Method, Request, Status}
+import org.http4s.{AuthScheme, Method, Request, Status}
 import org.scalacheck.Gen
 import org.scalacheck.cats.implicits.genInstances
 import org.scalacheck.effect.PropF.forAllF
 
 final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectSuite:
+  test("should get the current user"):
+    forAllF(successfulGetCurrentUserGen): testCase =>
+      given Decoder[GetCurrentUserResponse] =
+        GetCurrentUserResponse.getCurrentUserResponseJsonDecoder
+      (for (result, finalState) <- runWith(
+          testCase.initialState,
+          Request(method = Method.GET, uri = uri"/api/users").putHeaders(testCase.authorization),
+        )
+      yield (result, finalState)).map { case (result, finalState) =>
+        assertEquals(result, Right(testCase.expectedResponse))
+        assertEquals(finalState, testCase.expectedState)
+      }
+
   test("should login a user"):
     forAllF(successfulUserLoginGen): testCase =>
       given Decoder[LoginUserResponse] = LoginUserResponse.loginUserResponseJsonDecoder
@@ -62,11 +82,46 @@ final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectS
 
 object RealWorldHttpAppSuite:
   final private case class TestCase[A, B](
+      authorization: Option[Authorization],
       initialState: RealWorldHttpAppState,
       expectedState: RealWorldHttpAppState,
       request: A,
       expectedResponse: (B, Status),
   )
+
+  private val successfulGetCurrentUserGen = for
+    emails <- nDistinct(7, emailGen)
+    tokens <- nDistinct(7, tokenGen)
+    case selectedUser :: otherUsers <- emails
+      .zip(tokens)
+      .traverse { case (email, token) =>
+        for
+          password <- passwordGen
+          user <- userGen(email, Some(token))
+          userWithPassword <- userWithPasswordGen(user, password)
+        yield TestUser(password, userWithPassword)
+      }
+    allUsers = selectedUser :: otherUsers
+    authorization = Authorization(
+      Token(
+        AuthScheme.Bearer,
+        selectedUser.userWithPassword.user.token.map(_.value.value).getOrElse(""),
+      ),
+    )
+    initialState = RealWorldHttpAppState.empty
+      .setTokens(
+        allUsers
+          .map { case TestUser(_, userWithPassword) =>
+            userWithPassword.user.email -> userWithPassword.user.token
+          }
+          .collect { case (email, Some(token)) => email -> token }
+          .toMap,
+      )
+      .setUsersWithPassword(allUsers.map { case TestUser(_, userWithPassword) => userWithPassword })
+    expectedState = initialState.copy()
+    request = Nil
+    expectedResponse = (GetCurrentUserResponse(selectedUser.userWithPassword.user), Status.Ok)
+  yield TestCase(Some(authorization), initialState, expectedState, request, expectedResponse)
 
   final private case class TestUser(
       password: Password[ClearText],
@@ -104,7 +159,7 @@ object RealWorldHttpAppSuite:
       ),
     )
     expectedResponse = (LoginUserResponse(selectedUser.userWithPassword.user), Status.Ok)
-  yield TestCase(initialState, expectedState, request, expectedResponse)
+  yield TestCase(None, initialState, expectedState, request, expectedResponse)
 
   private val successfulUserRegistrationGen = for
     email <- emailGen
@@ -116,4 +171,4 @@ object RealWorldHttpAppSuite:
     expectedState = initialState.setUsersWithPassword(List(userWithPassword))
     request = RegisterNewUserRequest(RegisterNewUserRequest.User(email, password.value, username))
     expectedResponse = (RegisterNewUserResponse(user), Status.Ok)
-  yield TestCase(initialState, expectedState, request, expectedResponse)
+  yield TestCase(None, initialState, expectedState, request, expectedResponse)
