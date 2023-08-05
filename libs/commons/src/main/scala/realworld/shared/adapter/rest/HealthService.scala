@@ -10,9 +10,7 @@ import org.typelevel.log4cats.Logger
 trait HealthService:
   def isReady: IO[Boolean]
   def livenessPath: LivenessPath
-
   def markReady: IO[Unit]
-
   def markUnready: IO[Unit]
   def readinessPath: ReadinessPath
   def serviceName: ServiceName

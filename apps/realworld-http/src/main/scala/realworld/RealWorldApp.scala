@@ -44,6 +44,7 @@ object RealWorldApp extends CommandIOApp(name = "realworld-http", header = "Real
             // Limit the number of active requests by rejecting requests over the limit defined
             middleware(
               RealWorldHttpApp(
+                authService,
                 healthService,
                 metricsService,
                 traceService,

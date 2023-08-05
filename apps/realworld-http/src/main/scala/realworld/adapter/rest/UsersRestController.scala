@@ -1,21 +1,26 @@
 package es.eriktorr
 package realworld.adapter.rest
 
+import realworld.adapter.rest.JwtAuthMiddleware.jwtAuthMiddleware
 import realworld.adapter.rest.request.{LoginUserRequest, RegisterNewUserRequest}
 import realworld.adapter.rest.response.{LoginUserResponse, RegisterNewUserResponse}
-import realworld.domain.model.{Credentials, NewUser}
-import realworld.domain.service.UsersService
+import realworld.domain.model.{Credentials, Email, NewUser}
+import realworld.domain.service.{AuthService, UsersService}
 
 import cats.effect.IO
-import org.http4s.HttpRoutes
+import cats.implicits.toSemigroupKOps
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.io.*
+import org.http4s.{AuthedRoutes, HttpRoutes}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 
-final class UsersRestController(usersService: UsersService)(using
+final class UsersRestController(authService: AuthService, usersService: UsersService)(using
     logger: SelfAwareStructuredLogger[IO],
 ) extends BaseRestController:
-  val routes: HttpRoutes[IO] = HttpRoutes.of[IO]:
+  private val secureRoutes = AuthedRoutes.of[Email, IO]:
+    case GET -> Root / "users" as email => ???
+
+  private val publicRoutes: HttpRoutes[IO] = HttpRoutes.of[IO]:
     case request @ POST -> Root / "users" =>
       (for
         newUser <- validatedInputFrom[RegisterNewUserRequest, NewUser](request)
@@ -29,3 +34,6 @@ final class UsersRestController(usersService: UsersService)(using
         user <- usersService.loginUserIdentifiedBy(credentials)
         response <- Ok(LoginUserResponse(user))
       yield response).handleErrorWith(contextFrom(request))
+
+  val routes: HttpRoutes[IO] =
+    publicRoutes <+> jwtAuthMiddleware[Email](authService.verify)(secureRoutes)

@@ -55,7 +55,13 @@ object RealWorldHttpAppSuiteRunner:
     usersService = UsersService(authService, usersRepository)
     httpApp =
       given SelfAwareStructuredLogger[IO] = NoOpLogger.impl[IO]
-      RealWorldHttpApp(healthService, metricsService, traceService, usersService).httpApp
+      RealWorldHttpApp(
+        authService,
+        healthService,
+        metricsService,
+        traceService,
+        usersService,
+      ).httpApp
     result <- (for
       response <- httpApp.run(request)
       status = response.status
