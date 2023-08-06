@@ -1,6 +1,7 @@
 package es.eriktorr
 package realworld.domain.service
 
+import realworld.domain.model.Password.CipherText
 import realworld.domain.model.{Email, NewUser, User, UserWithPassword}
 import realworld.shared.data.error.HandledError
 
@@ -11,7 +12,7 @@ trait UsersRepository:
 
   def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword]]
 
-  def register(newUser: NewUser): IO[User]
+  def register(newUser: NewUser[CipherText]): IO[User]
 
 object UsersRepository:
   sealed abstract class UsersRepositoryError(message: String, cause: Option[Throwable])

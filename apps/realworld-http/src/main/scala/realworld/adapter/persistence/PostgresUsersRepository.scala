@@ -39,7 +39,7 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
       .option
       .transact(transactor)
 
-  override def register(newUser: NewUser): IO[User] = (for
+  override def register(newUser: NewUser[CipherText]): IO[User] = (for
     _ <- sql"""insert into users (
               |  email, username, password
               |) values (

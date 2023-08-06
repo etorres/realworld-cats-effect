@@ -3,7 +3,7 @@ package realworld
 
 import realworld.adapter.persistence.PostgresUsersRepository
 import realworld.application.{HttpServer, RealWorldConfig, RealWorldHttpApp, RealWorldParams}
-import realworld.domain.service.{AuthService, UsersService}
+import realworld.domain.service.{AuthService, CipherService, UsersService}
 import realworld.shared.ConsoleLogger
 import realworld.shared.adapter.persistence.JdbcTransactor
 import realworld.shared.adapter.rest.{HealthService, MetricsService, ServiceName, TraceService}
@@ -31,8 +31,9 @@ object RealWorldApp extends CommandIOApp(name = "realworld-http", header = "Real
       consoleLogger <- ConsoleLogger.resource
       transactor <- JdbcTransactor(config.jdbcConfig).resource
       authService = AuthService.impl(config.securityConfig)
+      cipherService = CipherService.impl
       usersRepository = PostgresUsersRepository(transactor)
-      usersService = UsersService(authService, usersRepository)
+      usersService = UsersService(authService, cipherService, usersRepository)
       serviceName = ServiceName("RealWorld")
       healthService <- HealthService.resourceWith(config.healthConfig, serviceName)
       metricsService <- MetricsService.resourceWith("http4s_server")

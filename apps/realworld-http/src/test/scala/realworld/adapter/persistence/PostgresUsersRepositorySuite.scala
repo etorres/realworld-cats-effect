@@ -6,6 +6,7 @@ import realworld.adapter.persistence.PostgresUsersRepositorySuite.{
   registerTestCaseGen,
 }
 import realworld.adapter.persistence.row.UserRow
+import realworld.domain.model.Password.CipherText
 import realworld.domain.model.RealWorldGenerators.{
   emailGen,
   userGen,
@@ -114,7 +115,11 @@ object PostgresUsersRepositorySuite:
         case (userWithPassword, userId) => userWithPassword.toUserRow(userId)
   yield LoginTestCase(selectedEmail, expected, rows)
 
-  final private case class RegisterTestCase(expected: User, newUser: NewUser, row: UserRow)
+  final private case class RegisterTestCase(
+      expected: User,
+      newUser: NewUser[CipherText],
+      row: UserRow,
+  )
 
   private val registerTestCaseGen = for
     userId <- userIdGen
@@ -127,9 +132,9 @@ object PostgresUsersRepositorySuite:
   yield RegisterTestCase(expected, newUser, row)
 
   extension (userWithPassword: UserWithPassword)
-    def toNewUser: NewUser =
+    def toNewUser: NewUser[CipherText] =
       userWithPassword
-        .into[NewUser]
+        .into[NewUser[CipherText]]
         .transform(
           Field.computed(_.email, _.user.email),
           Field.computed(_.username, _.user.username),

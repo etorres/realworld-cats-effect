@@ -13,16 +13,12 @@ import realworld.application.RealWorldHttpAppSuite.{
   successfulUserRegistrationGen,
 }
 import realworld.application.RealWorldHttpAppSuiteRunner.{runWith, RealWorldHttpAppState}
-import realworld.application.UsersDiffIgnoringPassword.given
 import realworld.domain.model.Password.ClearText
 import realworld.domain.model.RealWorldGenerators.*
 import realworld.domain.model.{Password, User, UserWithPassword}
-import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
 import realworld.shared.spec.CollectionGenerators.nDistinct
 
 import cats.implicits.toTraverseOps
-import com.softwaremill.diffx.Diff
-import com.softwaremill.diffx.munit.DiffxAssertions.assertEqual
 import io.circe.Decoder
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.http4s.Credentials.Token
@@ -70,14 +66,7 @@ final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectS
         )
       yield (result, finalState)).map { case (result, finalState) =>
         assertEquals(result, Right(testCase.expectedResponse))
-        assertEqual(
-          finalState.usersRepositoryState.users,
-          testCase.expectedState.usersRepositoryState.users,
-        )
-        assertEquals(
-          finalState.clearUsersWithPassword,
-          testCase.expectedState.clearUsersWithPassword,
-        )
+        assertEquals(finalState, testCase.expectedState)
       }
 
 object RealWorldHttpAppSuite:
@@ -142,6 +131,9 @@ object RealWorldHttpAppSuite:
       }
     allUsers = selectedUser :: otherUsers
     initialState = RealWorldHttpAppState.empty
+      .setPasswords(allUsers.map { case TestUser(password, userWithPassword) =>
+        password -> userWithPassword.password
+      }.toMap)
       .setTokens(
         allUsers
           .map { case TestUser(_, userWithPassword) =>
@@ -162,13 +154,15 @@ object RealWorldHttpAppSuite:
   yield TestCase(None, initialState, expectedState, request, expectedResponse)
 
   private val successfulUserRegistrationGen = for
-    email <- emailGen
     password <- passwordGen
-    username <- usernameGen
-    user = User(email, None, username, None, None)
-    userWithPassword = UserWithPassword(user, Password.cipher(password).orFail)
-    initialState = RealWorldHttpAppState.empty
+    user <- userGen(tokenGen = None, bioGen = None, imageGen = None)
+    userWithPassword <- userWithPasswordGen(userGen = user, passwordGen = password)
+    initialState = RealWorldHttpAppState.empty.setPasswords(
+      Map(password -> userWithPassword.password),
+    )
     expectedState = initialState.setUsersWithPassword(List(userWithPassword))
-    request = RegisterNewUserRequest(RegisterNewUserRequest.User(email, password.value, username))
+    request = RegisterNewUserRequest(
+      RegisterNewUserRequest.User(user.email, password.value, user.username),
+    )
     expectedResponse = (RegisterNewUserResponse(user), Status.Ok)
   yield TestCase(None, initialState, expectedState, request, expectedResponse)

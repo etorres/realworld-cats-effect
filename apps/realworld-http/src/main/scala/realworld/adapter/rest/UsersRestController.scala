@@ -8,6 +8,7 @@ import realworld.adapter.rest.response.{
   LoginUserResponse,
   RegisterNewUserResponse,
 }
+import realworld.domain.model.Password.ClearText
 import realworld.domain.model.{Credentials, NewUser, User}
 import realworld.domain.service.{AuthService, UsersService}
 
@@ -21,26 +22,26 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 final class UsersRestController(authService: AuthService, usersService: UsersService)(using
     logger: SelfAwareStructuredLogger[IO],
 ) extends BaseRestController:
-  private val secureRoutes = AuthedRoutes.of[User, IO]:
-    case request @ GET -> Root / "users" as user =>
-      Ok(GetCurrentUserResponse(user)).handleErrorWith(contextFrom(request.req))
-
-  private val publicRoutes: HttpRoutes[IO] = HttpRoutes.of[IO]:
-    case request @ POST -> Root / "users" =>
-      (for
-        newUser <- validatedInputFrom[RegisterNewUserRequest, NewUser](request)
-        user <- usersService.register(newUser)
-        response <- Ok(RegisterNewUserResponse(user))
-      yield response).handleErrorWith(contextFrom(request))
-
-    case request @ POST -> Root / "users" / "login" =>
-      (for
-        credentials <- validatedInputFrom[LoginUserRequest, Credentials](request)
-        user <- usersService.loginUserIdentifiedBy(credentials)
-        response <- Ok(LoginUserResponse(user))
-      yield response).handleErrorWith(contextFrom(request))
-
   val routes: HttpRoutes[IO] =
+    val publicRoutes: HttpRoutes[IO] = HttpRoutes.of[IO]:
+      case request @ POST -> Root / "users" =>
+        (for
+          newUser <- validatedInputFrom[RegisterNewUserRequest, NewUser[ClearText]](request)
+          user <- usersService.register(newUser)
+          response <- Ok(RegisterNewUserResponse(user))
+        yield response).handleErrorWith(contextFrom(request))
+
+      case request @ POST -> Root / "users" / "login" =>
+        (for
+          credentials <- validatedInputFrom[LoginUserRequest, Credentials](request)
+          user <- usersService.loginUserIdentifiedBy(credentials)
+          response <- Ok(LoginUserResponse(user))
+        yield response).handleErrorWith(contextFrom(request))
+
+    val secureRoutes = AuthedRoutes.of[User, IO]:
+      case request @ GET -> Root / "users" as user =>
+        Ok(GetCurrentUserResponse(user)).handleErrorWith(contextFrom(request.req))
+
     publicRoutes <+> jwtAuthMiddleware[User](token =>
       for
         email <- authService.verify(token)

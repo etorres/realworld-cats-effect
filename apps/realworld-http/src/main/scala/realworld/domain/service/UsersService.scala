@@ -2,12 +2,17 @@ package es.eriktorr
 package realworld.domain.service
 
 import realworld.domain.model.*
+import realworld.domain.model.Password.ClearText
 import realworld.domain.service.UsersService.{AccessForbidden, UserNotFound}
 import realworld.shared.data.error.HandledError
 
 import cats.effect.IO
 
-final class UsersService(authService: AuthService, usersRepository: UsersRepository):
+final class UsersService(
+    authService: AuthService,
+    cipherService: CipherService,
+    usersRepository: UsersRepository,
+):
   def findBy(email: Email): IO[User] = for
     maybeUser <- usersRepository.findUserBy(email)
     user <- maybeUser match
@@ -18,15 +23,20 @@ final class UsersService(authService: AuthService, usersRepository: UsersReposit
   def loginUserIdentifiedBy(credentials: Credentials): IO[User] = for
     maybeUserWithPassword <- usersRepository.findUserWithPasswordBy(credentials.email)
     userWithPassword <- IO.fromOption(maybeUserWithPassword)(AccessForbidden(credentials.email))
-    user <-
-      if Password.check(credentials.password, userWithPassword.password) then
-        authService
+    user <- cipherService
+      .check(credentials.password, userWithPassword.password)
+      .ifM(
+        ifTrue = authService
           .tokenFor(userWithPassword.user.email)
-          .map(token => userWithPassword.user.copy(token = Some(token)))
-      else IO.raiseError(AccessForbidden(credentials.email))
+          .map(token => userWithPassword.user.copy(token = Some(token))),
+        ifFalse = IO.raiseError(AccessForbidden(credentials.email)),
+      )
   yield user
 
-  def register(newUser: NewUser): IO[User] = usersRepository.register(newUser)
+  def register(newUser: NewUser[ClearText]): IO[User] = for
+    hash <- cipherService.cipher(newUser.password)
+    user <- usersRepository.register(newUser.withHash(hash))
+  yield user
 
 object UsersService:
   sealed abstract class UsersServiceError(message: String) extends HandledError(message)

@@ -21,10 +21,10 @@ object RegisterNewUserRequest:
 
   given registerNewUserRequestJsonEncoder: Encoder[RegisterNewUserRequest] = deriveEncoder
 
-  given registerNewUserRequestTransformer: Transformer[RegisterNewUserRequest, NewUser] =
+  given registerNewUserRequestTransformer: Transformer[RegisterNewUserRequest, NewUser[ClearText]] =
     (request: RegisterNewUserRequest) =>
       (
         Email.from(request.user.email),
-        Password.from[ClearText](request.user.password.value).andThen(Password.cipher),
+        Password.from[ClearText](request.user.password.value),
         Username.from(request.user.username),
       ).mapN(NewUser.apply)

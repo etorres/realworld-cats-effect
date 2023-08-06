@@ -16,7 +16,7 @@ final class FakeAuthService(stateRef: Ref[IO, AuthServiceState]) extends AuthSer
     )
 
   override def verify(token: Token): IO[Email] =
-    stateRef.get.flatMap { currentState =>
+    stateRef.get.flatMap: currentState =>
       val emails = currentState.tokens
         .filter { case (_, currentToken) =>
           currentToken == token
@@ -26,7 +26,6 @@ final class FakeAuthService(stateRef: Ref[IO, AuthServiceState]) extends AuthSer
       emails match
         case email :: Nil => IO.pure(email)
         case _ => IO.raiseError(IllegalArgumentException("Invalid token"))
-    }
 
 object FakeAuthService:
   final case class AuthServiceState(tokens: Map[Email, Token]):
