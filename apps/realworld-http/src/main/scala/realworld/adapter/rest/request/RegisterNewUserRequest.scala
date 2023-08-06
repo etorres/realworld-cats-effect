@@ -3,12 +3,12 @@ package realworld.adapter.rest.request
 
 import realworld.adapter.rest.BaseRestController.Transformer
 import realworld.adapter.rest.request.RegisterNewUserRequest.User
-import realworld.domain.model.Password.ClearText
+import realworld.domain.model.Password.PlainText
 import realworld.domain.model.User.Username
-import realworld.domain.model.{Email, NewUser, Password}
+import realworld.domain.model.{Email, Password, User as UserModel, UserWithPassword}
 import realworld.shared.Secret
 
-import cats.implicits.catsSyntaxTuple3Semigroupal
+import cats.implicits.catsSyntaxTuple2Semigroupal
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
 
@@ -21,10 +21,15 @@ object RegisterNewUserRequest:
 
   given registerNewUserRequestJsonEncoder: Encoder[RegisterNewUserRequest] = deriveEncoder
 
-  given registerNewUserRequestTransformer: Transformer[RegisterNewUserRequest, NewUser[ClearText]] =
+  given registerNewUserRequestTransformer
+      : Transformer[RegisterNewUserRequest, UserWithPassword[PlainText]] =
     (request: RegisterNewUserRequest) =>
       (
         Email.from(request.user.email),
-        Password.from[ClearText](request.user.password.value),
         Username.from(request.user.username),
-      ).mapN(NewUser.apply)
+      ).mapN { case (email, username) => UserModel(email, None, username, None, None) }
+        .andThen(user =>
+          Password
+            .from[PlainText](request.user.password.value)
+            .map(password => UserWithPassword[PlainText](user, password)),
+        )

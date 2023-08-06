@@ -14,17 +14,16 @@ final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends
     user = maybeUserWithPassword.map(_.user)
   yield user
 
-  override def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword]] =
+  override def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword[CipherText]]] =
     stateRef.get.map(_.users.find(_.user.email == email))
 
-  override def register(newUser: NewUser[CipherText]): IO[User] = for
-    user <- IO.pure(User(newUser.email, None, newUser.username, None, None))
-    userWithPassword = UserWithPassword(user, newUser.password)
-    _ <- stateRef.update(currentState => currentState.copy(userWithPassword :: currentState.users))
-  yield user
+  override def register(newUser: UserWithPassword[CipherText]): IO[User] =
+    stateRef
+      .update(currentState => currentState.copy(newUser :: currentState.users))
+      .map(_ => newUser.user)
 
 object FakeUsersRepository:
-  final case class UsersRepositoryState(users: List[UserWithPassword])
+  final case class UsersRepositoryState(users: List[UserWithPassword[CipherText]])
 
   object UsersRepositoryState:
     def empty: UsersRepositoryState = UsersRepositoryState(List.empty)

@@ -8,8 +8,8 @@ import realworld.adapter.rest.response.{
   LoginUserResponse,
   RegisterNewUserResponse,
 }
-import realworld.domain.model.Password.ClearText
-import realworld.domain.model.{Credentials, NewUser, User}
+import realworld.domain.model.Password.PlainText
+import realworld.domain.model.{Credentials, User, UserWithPassword}
 import realworld.domain.service.{AuthService, UsersService}
 
 import cats.effect.IO
@@ -26,7 +26,9 @@ final class UsersRestController(authService: AuthService, usersService: UsersSer
     val publicRoutes: HttpRoutes[IO] = HttpRoutes.of[IO]:
       case request @ POST -> Root / "users" =>
         (for
-          newUser <- validatedInputFrom[RegisterNewUserRequest, NewUser[ClearText]](request)
+          newUser <- validatedInputFrom[RegisterNewUserRequest, UserWithPassword[PlainText]](
+            request,
+          )
           user <- usersService.register(newUser)
           response <- Ok(RegisterNewUserResponse(user))
         yield response).handleErrorWith(contextFrom(request))
@@ -41,6 +43,8 @@ final class UsersRestController(authService: AuthService, usersService: UsersSer
     val secureRoutes = AuthedRoutes.of[User, IO]:
       case request @ GET -> Root / "users" as user =>
         Ok(GetCurrentUserResponse(user)).handleErrorWith(contextFrom(request.req))
+
+      case request @ PUT -> Root / "users" as user => Ok() // TODO
 
     publicRoutes <+> jwtAuthMiddleware[User](token =>
       for

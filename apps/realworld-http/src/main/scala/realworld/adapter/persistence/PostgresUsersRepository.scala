@@ -25,9 +25,9 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
     user <- userRow.traverse(_.toUser.validated)
   yield user
 
-  override def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword]] = for
+  override def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword[CipherText]]] = for
     userRow <- findBy(email)
-    userWithPassword <- userRow.traverse(_.toUserWithPassword.validated)
+    userWithPassword <- userRow.traverse(_.toUserWithPassword[CipherText].validated)
   yield userWithPassword
 
   private def findBy(email: Email): IO[Option[UserRow]] =
@@ -39,20 +39,22 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
       .option
       .transact(transactor)
 
-  override def register(newUser: NewUser[CipherText]): IO[User] = (for
-    _ <- sql"""insert into users (
-              |  email, username, password
-              |) values (
-              |  ${newUser.email},
-              |  ${newUser.username},
-              |  ${newUser.password}
-              |)""".stripMargin.update.run.transact(transactor).void
-    user = User(newUser.email, None, newUser.username, None, None)
-  yield user).adaptError {
-    case error: PSQLException if isUniqueViolationError(error) =>
-      val serverErrorMessage = error.getServerErrorMessage.nn
-      AlreadyInUseError(serverErrorMessage.getConstraint.nn, error)
-  }
+  override def register(newUser: UserWithPassword[CipherText]): IO[User] =
+    sql"""insert into users (
+         |  email, username, password
+         |) values (
+         |  ${newUser.user.email},
+         |  ${newUser.user.username},
+         |  ${newUser.password}
+         |)""".stripMargin.update.run
+      .transact(transactor)
+      .void
+      .map(_ => newUser.user)
+      .adaptError {
+        case error: PSQLException if isUniqueViolationError(error) =>
+          val serverErrorMessage = error.getServerErrorMessage.nn
+          AlreadyInUseError(serverErrorMessage.getConstraint.nn, error)
+      }
 
   private def isUniqueViolationError(error: PSQLException) =
     val sqlState = error.getServerErrorMessage.nn.getSQLState

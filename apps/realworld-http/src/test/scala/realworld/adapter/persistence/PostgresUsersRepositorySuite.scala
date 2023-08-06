@@ -13,7 +13,7 @@ import realworld.domain.model.RealWorldGenerators.{
   usernameGen,
   userWithPasswordGen,
 }
-import realworld.domain.model.{Email, NewUser, User, UserWithPassword}
+import realworld.domain.model.{Email, User, UserWithPassword}
 import realworld.domain.service.UsersRepository.AlreadyInUseError
 import realworld.shared.spec.CollectionGenerators.nDistinct
 import realworld.shared.spec.PostgresSuite
@@ -55,8 +55,10 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
     forAllF(
       for
         testCase <- registerTestCaseGen
-        otherUsername <- usernameGen.retryUntil(_ != testCase.newUser.username, 100)
-      yield testCase.copy(newUser = testCase.newUser.copy(username = otherUsername)),
+        otherUsername <- usernameGen.retryUntil(_ != testCase.newUser.user.username, 100)
+      yield testCase.copy(newUser =
+        testCase.newUser.copy(user = testCase.newUser.user.copy(username = otherUsername)),
+      ),
     ): testCase =>
       testTransactor.resource.use: transactor =>
         val testRepository = PostgresUsersTestRepository(transactor)
@@ -74,8 +76,10 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
     forAllF(
       for
         testCase <- registerTestCaseGen
-        otherEmail <- emailGen.retryUntil(_ != testCase.newUser.email, 100)
-      yield testCase.copy(newUser = testCase.newUser.copy(email = otherEmail)),
+        otherEmail <- emailGen.retryUntil(_ != testCase.newUser.user.email, 100)
+      yield testCase.copy(newUser =
+        testCase.newUser.copy(user = testCase.newUser.user.copy(email = otherEmail)),
+      ),
     ): testCase =>
       testTransactor.resource.use: transactor =>
         val testRepository = PostgresUsersTestRepository(transactor)
@@ -92,9 +96,9 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
 object PostgresUsersRepositorySuite:
   private val userIdGen = Gen.choose(1, 10000)
 
-  final private case class LoginTestCase(
+  final private case class FindUserWithPasswordTestCase(
       email: Email,
-      expected: Option[UserWithPassword],
+      expected: Option[UserWithPassword[CipherText]],
       rows: List[UserRow],
   )
 
@@ -113,11 +117,11 @@ object PostgresUsersRepositorySuite:
       .zip(userIds)
       .map:
         case (userWithPassword, userId) => userWithPassword.toUserRow(userId)
-  yield LoginTestCase(selectedEmail, expected, rows)
+  yield FindUserWithPasswordTestCase(selectedEmail, expected, rows)
 
   final private case class RegisterTestCase(
       expected: User,
-      newUser: NewUser[CipherText],
+      newUser: UserWithPassword[CipherText],
       row: UserRow,
   )
 
@@ -127,19 +131,10 @@ object PostgresUsersRepositorySuite:
       userGen(tokenGen = None, bioGen = None, imageGen = None),
     )
     expected = userWithPassword.user
-    newUser = userWithPassword.toNewUser
     row = userWithPassword.toUserRow(userId)
-  yield RegisterTestCase(expected, newUser, row)
+  yield RegisterTestCase(expected, userWithPassword, row)
 
-  extension (userWithPassword: UserWithPassword)
-    def toNewUser: NewUser[CipherText] =
-      userWithPassword
-        .into[NewUser[CipherText]]
-        .transform(
-          Field.computed(_.email, _.user.email),
-          Field.computed(_.username, _.user.username),
-        )
-
+  extension (userWithPassword: UserWithPassword[CipherText])
     def toUserRow(userId: Int): UserRow =
       userWithPassword
         .into[UserRow]

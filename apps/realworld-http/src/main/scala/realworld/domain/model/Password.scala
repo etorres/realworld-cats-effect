@@ -17,30 +17,30 @@ object Password:
   import scala.language.unsafeNulls
 
   sealed trait Format
-  sealed trait ClearText extends Format
+  sealed trait PlainText extends Format
   sealed trait CipherText extends Format
 
   def from[A <: Format](value: String)(using
       typeNameA: TypeName[A],
   ): AllErrorsOr[Password[A]] = typeNameA.value match
-    case t if t == typeName[ClearText] => Password(Secret(value)).validNec
+    case t if t == typeName[PlainText] => Password(Secret(value)).validNec
     case t if t == typeName[CipherText] =>
       if value.length == 159 && value.startsWith(argon2Signature) then
         Password(Secret(value)).validNec
       else "Invalid password format".invalidNec
-    case _ => "Unsupported password type".invalidNec
+    case other => s"Unsupported password type: $other".invalidNec
 
   def unsafeFrom[A <: Format](value: String)(using typeNameA: TypeName[A]): Password[A] =
     from[A](value).orFail
 
   given passwordShow[A <: Format]: Show[Password[A]] = Show.fromToString
 
-  def cipher(password: Password[ClearText]): AllErrorsOr[Password[CipherText]] =
+  def cipher(password: Password[PlainText]): AllErrorsOr[Password[CipherText]] =
     Password.from[CipherText](
       Password4j.hash(password.value.value).addRandomSalt().`with`(argon2Function).getResult,
     )
 
-  def check(password: Password[ClearText], hash: Password[CipherText]): Boolean =
+  def check(password: Password[PlainText], hash: Password[CipherText]): Boolean =
     Password4j.check(password.value.value, hash.value.value).`with`(argon2Function)
 
   private inline val memoryInKib = 12

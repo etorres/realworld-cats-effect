@@ -1,7 +1,7 @@
 package es.eriktorr
 package realworld.adapter.persistence.row
 
-import realworld.domain.model.Password.CipherText
+import realworld.domain.model.Password.Format
 import realworld.domain.model.User.{Token, Username}
 import realworld.domain.model.{Email, Password, User, UserWithPassword}
 import realworld.shared.Secret
@@ -10,6 +10,7 @@ import realworld.shared.data.validated.ValidatedNecExtensions.AllErrorsOr
 
 import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple3Semigroupal, toTraverseOps}
 import io.github.arainko.ducktape.*
+import org.tpolecat.typename.TypeName
 
 final case class UserRow(
     userId: Int,
@@ -35,5 +36,7 @@ object UserRow:
             )
         }
 
-    def toUserWithPassword: AllErrorsOr[UserWithPassword] =
-      (toUser, Password.from[CipherText](userRow.password.value)).mapN(UserWithPassword.apply)
+    def toUserWithPassword[A <: Format](using
+        typeNameA: TypeName[A],
+    ): AllErrorsOr[UserWithPassword[A]] =
+      (toUser, Password.from[A](userRow.password.value)).mapN(UserWithPassword.apply)

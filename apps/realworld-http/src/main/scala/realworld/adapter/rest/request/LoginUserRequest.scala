@@ -3,7 +3,7 @@ package realworld.adapter.rest.request
 
 import realworld.adapter.rest.BaseRestController.Transformer
 import realworld.adapter.rest.request.LoginUserRequest.User
-import realworld.domain.model.Password.ClearText
+import realworld.domain.model.Password.PlainText
 import realworld.domain.model.{Credentials, Email, Password}
 import realworld.shared.Secret
 
@@ -22,5 +22,5 @@ object LoginUserRequest:
 
   given loginUserRequestTransformer: Transformer[LoginUserRequest, Credentials] =
     (request: LoginUserRequest) =>
-      (Email.from(request.user.email), Password.from[ClearText](request.user.password.value))
+      (Email.from(request.user.email), Password.from[PlainText](request.user.password.value))
         .mapN(Credentials.apply)

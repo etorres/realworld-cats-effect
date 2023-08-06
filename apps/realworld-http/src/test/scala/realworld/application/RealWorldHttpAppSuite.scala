@@ -13,7 +13,7 @@ import realworld.application.RealWorldHttpAppSuite.{
   successfulUserRegistrationGen,
 }
 import realworld.application.RealWorldHttpAppSuiteRunner.{runWith, RealWorldHttpAppState}
-import realworld.domain.model.Password.ClearText
+import realworld.domain.model.Password.{CipherText, PlainText}
 import realworld.domain.model.RealWorldGenerators.*
 import realworld.domain.model.{Password, User, UserWithPassword}
 import realworld.shared.spec.CollectionGenerators.nDistinct
@@ -113,8 +113,8 @@ object RealWorldHttpAppSuite:
   yield TestCase(Some(authorization), initialState, expectedState, request, expectedResponse)
 
   final private case class TestUser(
-      password: Password[ClearText],
-      userWithPassword: UserWithPassword,
+                                     password: Password[PlainText],
+                                     userWithPassword: UserWithPassword[CipherText],
   )
 
   private val successfulUserLoginGen = for
