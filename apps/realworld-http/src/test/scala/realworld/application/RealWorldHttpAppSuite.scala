@@ -69,6 +69,9 @@ final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectS
         assertEquals(finalState, testCase.expectedState)
       }
 
+  test("should update an existing user"):
+    fail("not implemented")
+
 object RealWorldHttpAppSuite:
   final private case class TestCase[A, B](
       authorization: Option[Authorization],
@@ -113,8 +116,8 @@ object RealWorldHttpAppSuite:
   yield TestCase(Some(authorization), initialState, expectedState, request, expectedResponse)
 
   final private case class TestUser(
-                                     password: Password[PlainText],
-                                     userWithPassword: UserWithPassword[CipherText],
+      password: Password[PlainText],
+      userWithPassword: UserWithPassword[CipherText],
   )
 
   private val successfulUserLoginGen = for

@@ -35,13 +35,13 @@ final class UsersService(
 
   def register(newUser: UserWithPassword[PlainText]): IO[User] = for
     hash <- cipherService.cipher(newUser.password)
-    user <- usersRepository.register(newUser.withHash(hash))
+    user <- usersRepository.create(newUser.withHash(hash))
   yield user
 
   def update(updatedUser: UserWithPassword[PlainText]): IO[User] = for
     hash <- cipherService.cipher(updatedUser.password)
-    user = ???
-  yield user // TODO
+    user <- usersRepository.update(updatedUser.withHash(hash))
+  yield user
 
 object UsersService:
   sealed abstract class UsersServiceError(message: String) extends HandledError(message)

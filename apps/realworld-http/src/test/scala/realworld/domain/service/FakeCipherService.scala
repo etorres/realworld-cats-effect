@@ -23,7 +23,7 @@ final class FakeCipherService(stateRef: Ref[IO, CipherServiceState]) extends Cip
 object FakeCipherService:
   final case class CipherServiceState(passwords: Map[Password[PlainText], Password[CipherText]]):
     def setPasswords(
-                      newPasswords: Map[Password[PlainText], Password[CipherText]],
+        newPasswords: Map[Password[PlainText], Password[CipherText]],
     ): CipherServiceState = copy(newPasswords)
 
   object CipherServiceState:

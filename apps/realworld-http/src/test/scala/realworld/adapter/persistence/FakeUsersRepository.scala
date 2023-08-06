@@ -9,6 +9,11 @@ import realworld.domain.service.UsersRepository
 import cats.effect.{IO, Ref}
 
 final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends UsersRepository:
+  override def create(newUser: UserWithPassword[CipherText]): IO[User] =
+    stateRef
+      .update(currentState => currentState.copy(newUser :: currentState.users))
+      .map(_ => newUser.user)
+
   override def findUserBy(email: Email): IO[Option[User]] = for
     maybeUserWithPassword <- findUserWithPasswordBy(email)
     user = maybeUserWithPassword.map(_.user)
@@ -17,10 +22,7 @@ final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends
   override def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword[CipherText]]] =
     stateRef.get.map(_.users.find(_.user.email == email))
 
-  override def register(newUser: UserWithPassword[CipherText]): IO[User] =
-    stateRef
-      .update(currentState => currentState.copy(newUser :: currentState.users))
-      .map(_ => newUser.user)
+  override def update(updatedUser: UserWithPassword[CipherText]): IO[User] = ???
 
 object FakeUsersRepository:
   final case class UsersRepositoryState(users: List[UserWithPassword[CipherText]])

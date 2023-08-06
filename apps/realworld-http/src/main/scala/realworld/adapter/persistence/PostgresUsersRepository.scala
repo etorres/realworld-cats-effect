@@ -20,6 +20,23 @@ import doobie.implicits.*
 import org.postgresql.util.{PSQLException, PSQLState}
 
 final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends UsersRepository:
+  override def create(newUser: UserWithPassword[CipherText]): IO[User] = (for
+    _ <- sql"""insert into users (
+              |  email, username, password
+              |) values (
+              |  ${newUser.user.email},
+              |  ${newUser.user.username},
+              |  ${newUser.password}
+              |)""".stripMargin.update.run
+      .transact(transactor)
+      .void
+    user = newUser.user
+  yield user).adaptError {
+    case error: PSQLException if isUniqueViolationError(error) =>
+      val serverErrorMessage = error.getServerErrorMessage.nn
+      AlreadyInUseError(serverErrorMessage.getConstraint.nn, error)
+  }
+
   override def findUserBy(email: Email): IO[Option[User]] = for
     userRow <- findBy(email)
     user <- userRow.traverse(_.toUser.validated)
@@ -30,6 +47,18 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
     userWithPassword <- userRow.traverse(_.toUserWithPassword[CipherText].validated)
   yield userWithPassword
 
+  override def update(updatedUser: UserWithPassword[CipherText]): IO[User] = for
+    _ <- sql"""update users set
+              |  username = ${updatedUser.user.username},
+              |  password = ${updatedUser.password},
+              |  bio = ${updatedUser.user.username},
+              |  image = ${updatedUser.user.bio}
+              |where email = ${updatedUser.user.email}""".stripMargin.update.run
+      .transact(transactor)
+      .void
+    user = updatedUser.user
+  yield user
+
   private def findBy(email: Email): IO[Option[UserRow]] =
     sql"""select
          |  user_id, email, username, password, bio, image
@@ -38,23 +67,6 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
       .query[UserRow]
       .option
       .transact(transactor)
-
-  override def register(newUser: UserWithPassword[CipherText]): IO[User] =
-    sql"""insert into users (
-         |  email, username, password
-         |) values (
-         |  ${newUser.user.email},
-         |  ${newUser.user.username},
-         |  ${newUser.password}
-         |)""".stripMargin.update.run
-      .transact(transactor)
-      .void
-      .map(_ => newUser.user)
-      .adaptError {
-        case error: PSQLException if isUniqueViolationError(error) =>
-          val serverErrorMessage = error.getServerErrorMessage.nn
-          AlreadyInUseError(serverErrorMessage.getConstraint.nn, error)
-      }
 
   private def isUniqueViolationError(error: PSQLException) =
     val sqlState = error.getServerErrorMessage.nn.getSQLState

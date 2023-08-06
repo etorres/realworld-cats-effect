@@ -49,7 +49,7 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
     forAllF(registerTestCaseGen): testCase =>
       testTransactor.resource.use: transactor =>
         val usersRepository = PostgresUsersRepository(transactor)
-        usersRepository.register(testCase.newUser).assertEquals(testCase.expected)
+        usersRepository.create(testCase.newUser).assertEquals(testCase.expected)
 
   test("should fail with an error when a duplicated email is registered"):
     forAllF(
@@ -65,7 +65,7 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
         val usersRepository = PostgresUsersRepository(transactor)
         (for
           _ <- testRepository.add(testCase.row)
-          obtained <- usersRepository.register(testCase.newUser)
+          obtained <- usersRepository.create(testCase.newUser)
         yield obtained)
           .interceptMessage[AlreadyInUseError](
             "Given data is already in use: users_email_must_be_different",
@@ -86,12 +86,15 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
         val usersRepository = PostgresUsersRepository(transactor)
         (for
           _ <- testRepository.add(testCase.row)
-          obtained <- usersRepository.register(testCase.newUser)
+          obtained <- usersRepository.create(testCase.newUser)
         yield obtained)
           .interceptMessage[AlreadyInUseError](
             "Given data is already in use: users_username_must_be_different",
           )
           .map(_ => ())
+
+  test("should update an existent user"):
+    fail("not implemented")
 
 object PostgresUsersRepositorySuite:
   private val userIdGen = Gen.choose(1, 10000)

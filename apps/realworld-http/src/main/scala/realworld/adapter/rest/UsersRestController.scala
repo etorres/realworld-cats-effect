@@ -2,11 +2,12 @@ package es.eriktorr
 package realworld.adapter.rest
 
 import realworld.adapter.rest.JwtAuthMiddleware.jwtAuthMiddleware
-import realworld.adapter.rest.request.{LoginUserRequest, RegisterNewUserRequest}
+import realworld.adapter.rest.request.{LoginUserRequest, RegisterNewUserRequest, UpdateUserRequest}
 import realworld.adapter.rest.response.{
   GetCurrentUserResponse,
   LoginUserResponse,
   RegisterNewUserResponse,
+  UpdateUserResponse,
 }
 import realworld.domain.model.Password.PlainText
 import realworld.domain.model.{Credentials, User, UserWithPassword}
@@ -44,7 +45,14 @@ final class UsersRestController(authService: AuthService, usersService: UsersSer
       case request @ GET -> Root / "users" as user =>
         Ok(GetCurrentUserResponse(user)).handleErrorWith(contextFrom(request.req))
 
-      case request @ PUT -> Root / "users" as user => Ok() // TODO
+      case request @ PUT -> Root / "users" as user =>
+        (for
+          updatedUser <- validatedInputFrom[UpdateUserRequest, UserWithPassword[PlainText]](
+            request.req,
+          )
+          user <- usersService.update(updatedUser)
+          response <- Ok(UpdateUserResponse(user))
+        yield response).handleErrorWith(contextFrom(request.req))
 
     publicRoutes <+> jwtAuthMiddleware[User](token =>
       for

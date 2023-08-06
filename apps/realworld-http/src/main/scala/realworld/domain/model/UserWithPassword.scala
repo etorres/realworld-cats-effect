@@ -1,7 +1,7 @@
 package es.eriktorr
 package realworld.domain.model
 
-import realworld.domain.model.Password.{CipherText, PlainText, Format}
+import realworld.domain.model.Password.{CipherText, Format, PlainText}
 
 import io.github.arainko.ducktape.*
 

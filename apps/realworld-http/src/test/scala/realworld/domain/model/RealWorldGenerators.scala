@@ -45,8 +45,8 @@ object RealWorldGenerators:
     yield User(email, token, username, bio, image)
 
   def userWithPasswordGen(
-                           userGen: Gen[User] = userGen(),
-                           passwordGen: Gen[Password[PlainText]] = passwordGen,
+      userGen: Gen[User] = userGen(),
+      passwordGen: Gen[Password[PlainText]] = passwordGen,
   ): Gen[UserWithPassword[CipherText]] = for
     user <- userGen
     password <- passwordGen
