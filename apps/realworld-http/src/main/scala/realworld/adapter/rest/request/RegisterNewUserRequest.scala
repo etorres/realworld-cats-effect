@@ -5,7 +5,8 @@ import realworld.adapter.rest.BaseRestController.Transformer
 import realworld.adapter.rest.request.RegisterNewUserRequest.User
 import realworld.domain.model.Password.PlainText
 import realworld.domain.model.User.Username
-import realworld.domain.model.{Email, Password, User as UserModel, UserWithPassword}
+import realworld.domain.model.UserWithPassword.UserWithPlaintextPassword
+import realworld.domain.model.{Email, Password, User as UserModel}
 import realworld.shared.Secret
 
 import cats.implicits.catsSyntaxTuple2Semigroupal
@@ -22,7 +23,7 @@ object RegisterNewUserRequest:
   given registerNewUserRequestJsonEncoder: Encoder[RegisterNewUserRequest] = deriveEncoder
 
   given registerNewUserRequestTransformer
-      : Transformer[RegisterNewUserRequest, UserWithPassword[PlainText]] =
+      : Transformer[RegisterNewUserRequest, UserWithPlaintextPassword] =
     (request: RegisterNewUserRequest) =>
       (
         Email.from(request.user.email),
@@ -31,5 +32,5 @@ object RegisterNewUserRequest:
         .andThen(user =>
           Password
             .from[PlainText](request.user.password.value)
-            .map(password => UserWithPassword[PlainText](user, password)),
+            .map(password => UserWithPlaintextPassword(user, password)),
         )

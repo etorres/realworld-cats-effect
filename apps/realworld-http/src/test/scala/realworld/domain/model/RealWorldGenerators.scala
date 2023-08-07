@@ -1,8 +1,9 @@
 package es.eriktorr
 package realworld.domain.model
 
-import realworld.domain.model.Password.{CipherText, PlainText}
+import realworld.domain.model.Password.PlainText
 import realworld.domain.model.User.{Token, Username}
+import realworld.domain.model.UserWithPassword.UserWithHashPassword
 import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
 import realworld.shared.spec.StringGenerators.{
   alphaNumericStringBetween,
@@ -44,11 +45,11 @@ object RealWorldGenerators:
       image <- imageGen
     yield User(email, token, username, bio, image)
 
-  def userWithPasswordGen(
+  def userWithHashPasswordGen(
       userGen: Gen[User] = userGen(),
       passwordGen: Gen[Password[PlainText]] = passwordGen,
-  ): Gen[UserWithPassword[CipherText]] = for
+  ): Gen[UserWithHashPassword] = for
     user <- userGen
     password <- passwordGen
     hash = Password.cipher(password).orFail
-  yield UserWithPassword(user, hash)
+  yield UserWithHashPassword(user, hash)

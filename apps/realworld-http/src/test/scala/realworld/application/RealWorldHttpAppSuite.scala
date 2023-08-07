@@ -15,7 +15,8 @@ import realworld.application.RealWorldHttpAppSuite.{
 import realworld.application.RealWorldHttpAppSuiteRunner.{runWith, RealWorldHttpAppState}
 import realworld.domain.model.Password.{CipherText, PlainText}
 import realworld.domain.model.RealWorldGenerators.*
-import realworld.domain.model.{Password, User, UserWithPassword}
+import realworld.domain.model.UserWithPassword.UserWithHashPassword
+import realworld.domain.model.{Password, User}
 import realworld.shared.spec.CollectionGenerators.nDistinct
 
 import cats.implicits.toTraverseOps
@@ -90,7 +91,7 @@ object RealWorldHttpAppSuite:
         for
           password <- passwordGen
           user <- userGen(email, Some(token))
-          userWithPassword <- userWithPasswordGen(user, password)
+          userWithPassword <- userWithHashPasswordGen(user, password)
         yield TestUser(password, userWithPassword)
       }
     allUsers = selectedUser :: otherUsers
@@ -117,7 +118,7 @@ object RealWorldHttpAppSuite:
 
   final private case class TestUser(
       password: Password[PlainText],
-      userWithPassword: UserWithPassword[CipherText],
+      userWithPassword: UserWithHashPassword,
   )
 
   private val successfulUserLoginGen = for
@@ -129,7 +130,7 @@ object RealWorldHttpAppSuite:
         for
           password <- passwordGen
           user <- userGen(email, Some(token))
-          userWithPassword <- userWithPasswordGen(user, password)
+          userWithPassword <- userWithHashPasswordGen(user, password)
         yield TestUser(password, userWithPassword)
       }
     allUsers = selectedUser :: otherUsers
@@ -159,7 +160,7 @@ object RealWorldHttpAppSuite:
   private val successfulUserRegistrationGen = for
     password <- passwordGen
     user <- userGen(tokenGen = None, bioGen = None, imageGen = None)
-    userWithPassword <- userWithPasswordGen(userGen = user, passwordGen = password)
+    userWithPassword <- userWithHashPasswordGen(userGen = user, passwordGen = password)
     initialState = RealWorldHttpAppState.empty.setPasswords(
       Map(password -> userWithPassword.password),
     )

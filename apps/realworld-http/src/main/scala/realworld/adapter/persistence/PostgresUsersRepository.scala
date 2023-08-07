@@ -4,9 +4,10 @@ package realworld.adapter.persistence
 import realworld.adapter.persistence.PostgresUsersRepository.given
 import realworld.adapter.persistence.SecretDoobieMapper.secretDoobieMapper
 import realworld.adapter.persistence.row.UserRow
-import realworld.domain.model.*
 import realworld.domain.model.Password.CipherText
 import realworld.domain.model.User.Username
+import realworld.domain.model.UserWithPassword.UserWithHashPassword
+import realworld.domain.model.{Email, Password, User}
 import realworld.domain.service.UsersRepository
 import realworld.domain.service.UsersRepository.AlreadyInUseError
 import realworld.shared.Secret
@@ -20,7 +21,7 @@ import doobie.implicits.*
 import org.postgresql.util.{PSQLException, PSQLState}
 
 final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends UsersRepository:
-  override def create(newUser: UserWithPassword[CipherText]): IO[User] = (for
+  override def create(newUser: UserWithHashPassword): IO[User] = (for
     _ <- sql"""insert into users (
               |  email, username, password
               |) values (
@@ -42,12 +43,14 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
     user <- userRow.traverse(_.toUser.validated)
   yield user
 
-  override def findUserWithPasswordBy(email: Email): IO[Option[UserWithPassword[CipherText]]] = for
+  override def findUserWithPasswordBy(email: Email): IO[Option[UserWithHashPassword]] = for
     userRow <- findBy(email)
-    userWithPassword <- userRow.traverse(_.toUserWithPassword[CipherText].validated)
+    userWithPassword <- userRow.traverse(
+      _.toUserWithPassword[CipherText, UserWithHashPassword].validated,
+    )
   yield userWithPassword
 
-  override def update(updatedUser: UserWithPassword[CipherText]): IO[User] = for
+  override def update(updatedUser: UserWithHashPassword): IO[User] = for
     _ <- sql"""update users set
               |  username = ${updatedUser.user.username},
               |  password = ${updatedUser.password},

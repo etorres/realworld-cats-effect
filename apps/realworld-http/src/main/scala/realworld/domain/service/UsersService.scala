@@ -2,7 +2,7 @@ package es.eriktorr
 package realworld.domain.service
 
 import realworld.domain.model.*
-import realworld.domain.model.Password.PlainText
+import realworld.domain.model.UserWithPassword.UserWithPlaintextPassword
 import realworld.domain.service.UsersService.{AccessForbidden, UserNotFound}
 import realworld.shared.data.error.HandledError
 
@@ -33,12 +33,12 @@ final class UsersService(
       )
   yield user
 
-  def register(newUser: UserWithPassword[PlainText]): IO[User] = for
+  def register(newUser: UserWithPlaintextPassword): IO[User] = for
     hash <- cipherService.cipher(newUser.password)
     user <- usersRepository.create(newUser.withHash(hash))
   yield user
 
-  def update(updatedUser: UserWithPassword[PlainText]): IO[User] = for
+  def update(updatedUser: UserWithPlaintextPassword): IO[User] = for
     hash <- cipherService.cipher(updatedUser.password)
     user <- usersRepository.update(updatedUser.withHash(hash))
   yield user

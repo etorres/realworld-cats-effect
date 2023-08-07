@@ -5,7 +5,8 @@ import realworld.adapter.persistence.FakeUsersRepository
 import realworld.adapter.persistence.FakeUsersRepository.UsersRepositoryState
 import realworld.domain.model.Password.{CipherText, PlainText}
 import realworld.domain.model.User.Token
-import realworld.domain.model.{Email, Password, UserWithPassword}
+import realworld.domain.model.UserWithPassword.UserWithHashPassword
+import realworld.domain.model.{Email, Password}
 import realworld.domain.service.FakeAuthService.AuthServiceState
 import realworld.domain.service.FakeCipherService.CipherServiceState
 import realworld.domain.service.{FakeAuthService, FakeCipherService, UsersService}
@@ -33,7 +34,7 @@ object RealWorldHttpAppSuiteRunner:
     def setPasswords(
         passwords: Map[Password[PlainText], Password[CipherText]],
     ): RealWorldHttpAppState = copy(cipherServiceState = cipherServiceState.setPasswords(passwords))
-    def setUsersWithPassword(users: List[UserWithPassword[CipherText]]): RealWorldHttpAppState =
+    def setUsersWithPassword(users: List[UserWithHashPassword]): RealWorldHttpAppState =
       copy(usersRepositoryState = usersRepositoryState.copy(users))
 
   object RealWorldHttpAppState:

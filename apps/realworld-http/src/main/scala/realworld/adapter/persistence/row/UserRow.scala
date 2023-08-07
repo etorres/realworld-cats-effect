@@ -8,7 +8,10 @@ import realworld.shared.Secret
 import realworld.shared.data.refined.StringExtensions.toUri
 import realworld.shared.data.validated.ValidatedNecExtensions.AllErrorsOr
 
-import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple3Semigroupal, toTraverseOps}
+import cats.Semigroup
+import cats.data.NonEmptyChain
+import cats.data.Validated.{Invalid, Valid}
+import cats.implicits.{catsSyntaxTuple3Semigroupal, toTraverseOps}
 import io.github.arainko.ducktape.*
 import org.tpolecat.typename.TypeName
 
@@ -36,7 +39,12 @@ object UserRow:
             )
         }
 
-    def toUserWithPassword[A <: Format](using
+    def toUserWithPassword[A <: Format, B <: UserWithPassword[A]](using
         typeNameA: TypeName[A],
-    ): AllErrorsOr[UserWithPassword[A]] =
-      (toUser, Password.from[A](userRow.password.value)).mapN(UserWithPassword.apply)
+    ): AllErrorsOr[B] =
+      (toUser, Password.from[A](userRow.password.value)) match
+        case (Valid(user), Valid(password)) => UserWithPassword.from[A, B](user, password)
+        case (Valid(_), error @ Invalid(_)) => error
+        case (error @ Invalid(_), Valid(_)) => error
+        case (Invalid(userError), Invalid(passwordError)) =>
+          Invalid(Semigroup[NonEmptyChain[String]].combine(userError, passwordError))

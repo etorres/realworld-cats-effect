@@ -9,8 +9,8 @@ import realworld.adapter.rest.response.{
   RegisterNewUserResponse,
   UpdateUserResponse,
 }
-import realworld.domain.model.Password.PlainText
-import realworld.domain.model.{Credentials, User, UserWithPassword}
+import realworld.domain.model.UserWithPassword.UserWithPlaintextPassword
+import realworld.domain.model.{Credentials, User}
 import realworld.domain.service.{AuthService, UsersService}
 
 import cats.effect.IO
@@ -27,7 +27,7 @@ final class UsersRestController(authService: AuthService, usersService: UsersSer
     val publicRoutes: HttpRoutes[IO] = HttpRoutes.of[IO]:
       case request @ POST -> Root / "users" =>
         (for
-          newUser <- validatedInputFrom[RegisterNewUserRequest, UserWithPassword[PlainText]](
+          newUser <- validatedInputFrom[RegisterNewUserRequest, UserWithPlaintextPassword](
             request,
           )
           user <- usersService.register(newUser)
@@ -47,7 +47,7 @@ final class UsersRestController(authService: AuthService, usersService: UsersSer
 
       case request @ PUT -> Root / "users" as user =>
         (for
-          updatedUser <- validatedInputFrom[UpdateUserRequest, UserWithPassword[PlainText]](
+          updatedUser <- validatedInputFrom[UpdateUserRequest, UserWithPlaintextPassword](
             request.req,
           )
           user <- usersService.update(updatedUser)

@@ -11,8 +11,9 @@ import realworld.domain.model.RealWorldGenerators.{
   emailGen,
   userGen,
   usernameGen,
-  userWithPasswordGen,
+  userWithHashPasswordGen,
 }
+import realworld.domain.model.UserWithPassword.UserWithHashPassword
 import realworld.domain.model.{Email, User, UserWithPassword}
 import realworld.domain.service.UsersRepository.AlreadyInUseError
 import realworld.shared.spec.CollectionGenerators.nDistinct
@@ -109,11 +110,11 @@ object PostgresUsersRepositorySuite:
     emails <- nDistinct(7, emailGen)
     userIds <- nDistinct(7, userIdGen)
     selectedEmail :: otherEmails = emails: @unchecked
-    selectedUserWithPassword <- userWithPasswordGen(userGen =
+    selectedUserWithPassword <- userWithHashPasswordGen(userGen =
       userGen(emailGen = selectedEmail, tokenGen = None),
     )
     otherUsersWithPassword <- otherEmails.traverse(email =>
-      userWithPasswordGen(userGen = userGen(emailGen = email, tokenGen = None)),
+      userWithHashPasswordGen(userGen = userGen(emailGen = email, tokenGen = None)),
     )
     expected = Some(selectedUserWithPassword)
     rows = (selectedUserWithPassword :: otherUsersWithPassword)
@@ -124,20 +125,20 @@ object PostgresUsersRepositorySuite:
 
   final private case class RegisterTestCase(
       expected: User,
-      newUser: UserWithPassword[CipherText],
+      newUser: UserWithHashPassword,
       row: UserRow,
   )
 
   private val registerTestCaseGen = for
     userId <- userIdGen
-    userWithPassword <- userWithPasswordGen(userGen =
+    userWithPassword <- userWithHashPasswordGen(userGen =
       userGen(tokenGen = None, bioGen = None, imageGen = None),
     )
     expected = userWithPassword.user
     row = userWithPassword.toUserRow(userId)
   yield RegisterTestCase(expected, userWithPassword, row)
 
-  extension (userWithPassword: UserWithPassword[CipherText])
+  extension (userWithPassword: UserWithHashPassword)
     def toUserRow(userId: Int): UserRow =
       userWithPassword
         .into[UserRow]
