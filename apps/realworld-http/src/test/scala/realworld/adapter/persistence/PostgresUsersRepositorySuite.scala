@@ -103,7 +103,8 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
         (for
           _ <- testCase.rows.traverse_(testRepository.add)
           obtained <- usersRepository.update(testCase.updated)
-        yield obtained).assertEquals(testCase.expected)
+          recovered <- usersRepository.findUserWithPasswordBy(testCase.updated.user.email)
+        yield (obtained, recovered)).assertEquals((testCase.expected.user, Some(testCase.expected)))
 
 object PostgresUsersRepositorySuite:
   private val userIdGen = Gen.choose(1, 10000)
@@ -147,7 +148,7 @@ object PostgresUsersRepositorySuite:
   yield FindUserWithPasswordTestCase(selectedEmail, expected, rows)
 
   final private case class UpdateUserTestCase(
-      expected: User,
+      expected: UserWithHashPassword,
       rows: List[UserRow],
       updated: UserWithHashPassword,
   )
@@ -162,9 +163,9 @@ object PostgresUsersRepositorySuite:
     otherUsersWithPassword <- otherEmails.traverse(email =>
       userWithHashPasswordGen(userGen = userGen(emailGen = email, tokenGen = None)),
     )
-    updated <- userWithHashPasswordGen(userGen(emailGen = selectedEmail))
+    updated <- userWithHashPasswordGen(userGen(emailGen = selectedEmail, tokenGen = None))
       .retryUntil(_ != selectedUserWithPassword, 100)
-    expected = updated.user
+    expected = updated
     rows = (selectedUserWithPassword :: otherUsersWithPassword)
       .zip(userIds)
       .map:
