@@ -54,8 +54,8 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
     _ <- sql"""update users set
               |  username = ${updatedUser.user.username},
               |  password = ${updatedUser.password},
-              |  bio = ${updatedUser.user.username},
-              |  image = ${updatedUser.user.bio}
+              |  bio = ${updatedUser.user.bio},
+              |  image = ${updatedUser.user.image.map(_.toString)}
               |where email = ${updatedUser.user.email}""".stripMargin.update.run
       .transact(transactor)
       .void

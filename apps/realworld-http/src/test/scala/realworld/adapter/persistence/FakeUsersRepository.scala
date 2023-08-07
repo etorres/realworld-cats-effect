@@ -22,7 +22,14 @@ final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends
   override def findUserWithPasswordBy(email: Email): IO[Option[UserWithHashPassword]] =
     stateRef.get.map(_.users.find(_.user.email == email))
 
-  override def update(updatedUser: UserWithHashPassword): IO[User] = create(updatedUser)
+  override def update(updatedUser: UserWithHashPassword): IO[User] =
+    stateRef
+      .update(currentState =>
+        currentState.copy(
+          updatedUser :: currentState.users.filterNot(_.user.email == updatedUser.user.email),
+        ),
+      )
+      .map(_ => updatedUser.user)
 
 object FakeUsersRepository:
   final case class UsersRepositoryState(users: List[UserWithHashPassword])

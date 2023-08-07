@@ -1,14 +1,16 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.adapter.rest.request.{LoginUserRequest, RegisterNewUserRequest}
+import realworld.adapter.rest.request.{LoginUserRequest, RegisterNewUserRequest, UpdateUserRequest}
 import realworld.adapter.rest.response.{
   GetCurrentUserResponse,
   LoginUserResponse,
   RegisterNewUserResponse,
+  UpdateUserResponse,
 }
 import realworld.application.RealWorldHttpAppSuite.{
   successfulGetCurrentUserGen,
+  successfulUpdateAnExistingUser,
   successfulUserLoginGen,
   successfulUserRegistrationGen,
 }
@@ -71,7 +73,18 @@ final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectS
       }
 
   test("should update an existing user"):
-    fail("not implemented")
+    forAllF(successfulUpdateAnExistingUser): testCase =>
+      given Decoder[UpdateUserResponse] = UpdateUserResponse.updateUserResponseJsonDecoder
+      (for (result, finalState) <- runWith(
+          testCase.initialState,
+          Request(method = Method.PUT, uri = uri"/api/users")
+            .putHeaders(testCase.authorization)
+            .withEntity(testCase.request),
+        )
+      yield (result, finalState)).map { case (result, finalState) =>
+        assertEquals(result, Right(testCase.expectedResponse))
+        assertEquals(finalState, testCase.expectedState)
+      }
 
 object RealWorldHttpAppSuite:
   final private case class TestCase[A, B](
@@ -170,3 +183,58 @@ object RealWorldHttpAppSuite:
     )
     expectedResponse = (RegisterNewUserResponse(user), Status.Ok)
   yield TestCase(None, initialState, expectedState, request, expectedResponse)
+
+  private val successfulUpdateAnExistingUser = for
+    emails <- nDistinct(7, emailGen)
+    tokens <- nDistinct(7, tokenGen)
+    case selectedUser :: otherUsers <- emails
+      .zip(tokens)
+      .traverse { case (email, token) =>
+        for
+          password <- passwordGen
+          user <- userGen(email, Some(token))
+          userWithPassword <- userWithHashPasswordGen(user, password)
+        yield TestUser(password, userWithPassword)
+      }
+    allUsers = selectedUser :: otherUsers
+    updatedPassword <- passwordGen.retryUntil(_ != selectedUser.password, 100)
+    updatedUser <- userWithHashPasswordGen(
+      userGen(emailGen = selectedUser.userWithPassword.user.email, tokenGen = None),
+      passwordGen = updatedPassword,
+    ).retryUntil(_ != selectedUser.userWithPassword, 100)
+    authorization = Authorization(
+      Token(
+        AuthScheme.Bearer,
+        selectedUser.userWithPassword.user.token.map(_.value.value).getOrElse(""),
+      ),
+    )
+    initialState = RealWorldHttpAppState.empty
+      .setPasswords(allUsers.map { case TestUser(password, userWithPassword) =>
+        password -> userWithPassword.password
+      }.toMap + (updatedPassword -> updatedUser.password))
+      .setTokens(
+        allUsers
+          .map { case TestUser(_, userWithPassword) =>
+            userWithPassword.user.email -> userWithPassword.user.token
+          }
+          .collect { case (email, Some(token)) => email -> token }
+          .toMap,
+      )
+      .setUsersWithPassword(allUsers.map { case TestUser(_, userWithPassword) => userWithPassword })
+    expectedState = initialState.setUsersWithPassword(allUsers.map {
+      case TestUser(_, userWithPassword) =>
+        if userWithPassword.user.email != updatedUser.user.email then userWithPassword
+        else updatedUser
+    })
+    request = UpdateUserRequest(
+      UpdateUserRequest
+        .User(
+          updatedUser.user.email,
+          updatedPassword.value,
+          updatedUser.user.username,
+          updatedUser.user.bio,
+          updatedUser.user.image.map(_.toString),
+        ),
+    )
+    expectedResponse = (UpdateUserResponse(updatedUser.user), Status.Ok)
+  yield TestCase(Some(authorization), initialState, expectedState, request, expectedResponse)
