@@ -7,7 +7,7 @@ import realworld.adapter.persistence.row.UserRow
 import realworld.domain.model.Password.CipherText
 import realworld.domain.model.User.Username
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
-import realworld.domain.model.{Email, Password, User}
+import realworld.domain.model.{Email, Password, User, UserId}
 import realworld.domain.service.UsersRepository
 import realworld.domain.service.UsersRepository.AlreadyInUseError
 import realworld.shared.Secret
@@ -38,10 +38,10 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
       AlreadyInUseError(serverErrorMessage.getConstraint.nn, error)
   }
 
-  override def findUserBy(email: Email): IO[Option[User]] = for
+  override def findUserIdBy(email: Email): IO[Option[UserId]] = for
     userRow <- findBy(email)
-    user <- userRow.traverse(_.toUser.validated)
-  yield user
+    userId <- userRow.traverse(x => UserId.from(x.userId).validated)
+  yield userId
 
   override def findUserWithPasswordBy(email: Email): IO[Option[UserWithHashPassword]] = for
     userRow <- findBy(email)
@@ -50,13 +50,14 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
     )
   yield userWithPassword
 
-  override def update(updatedUser: UserWithHashPassword): IO[User] = for
+  override def update(updatedUser: UserWithHashPassword, userId: UserId): IO[User] = for
     _ <- sql"""update users set
+              |  email = ${updatedUser.user.email},
               |  username = ${updatedUser.user.username},
               |  password = ${updatedUser.password},
               |  bio = ${updatedUser.user.bio},
               |  image = ${updatedUser.user.image.map(_.toString)}
-              |where email = ${updatedUser.user.email}""".stripMargin.update.run
+              |where user_id = $userId""".stripMargin.update.run
       .transact(transactor)
       .void
     user = updatedUser.user
@@ -81,6 +82,8 @@ object PostgresUsersRepository:
   given passwordDoobieMapper: Meta[Password[CipherText]] =
     Meta[Secret[String]]
       .tiemap(secret => Password.from[CipherText](secret.value).eitherMessage)(_.value)
+
+  given userIdDoobieMapper: Meta[UserId] = Meta[Int].tiemap(UserId.from(_).eitherMessage)(identity)
 
   given usernameDoobieMapper: Meta[Username] =
     Meta[String].tiemap(Username.from(_).eitherMessage)(identity)

@@ -2,7 +2,10 @@ package es.eriktorr
 package realworld.adapter.rest
 
 import realworld.adapter.rest.BaseRestController.{InvalidRequest, Transformer}
+import realworld.adapter.rest.JwtAuthMiddleware.jwtAuthMiddleware
+import realworld.domain.model.UserId
 import realworld.domain.service.UsersService.AccessForbidden
+import realworld.domain.service.{AuthService, UsersService}
 import realworld.shared.data.error.HandledError
 import realworld.shared.data.validated.ValidatedNecExtensions.{validatedNecTo, AllErrorsOr}
 
@@ -11,19 +14,18 @@ import cats.implicits.catsSyntaxMonadError
 import io.circe.Decoder
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.dsl.io.*
+import org.http4s.server.AuthMiddleware
 import org.http4s.{Request, Response}
 import org.typelevel.ci.CIStringSyntax
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 
-trait BaseRestController:
-  protected def validatedInputFrom[A, B](
-      request: Request[IO],
-  )(using decoder: Decoder[A], transformer: Transformer[A, B]): IO[B] =
-    request
-      .as[A]
-      .flatMap(transformer.transform(_).validated)
-      .adaptError:
-        case error => InvalidRequest(error)
+abstract class BaseRestController(authService: AuthService, usersService: UsersService):
+  protected val authMiddleware: AuthMiddleware[IO, UserId] = jwtAuthMiddleware[UserId](token =>
+    for
+      email <- authService.verify(token)
+      userId <- usersService.userIdFor(email)
+    yield userId,
+  )
 
   protected def contextFrom(request: Request[IO])(using
       logger: SelfAwareStructuredLogger[IO],
@@ -39,6 +41,15 @@ trait BaseRestController:
           logger.error(context, other)(
             "Unhandled error raised while handling request",
           ) *> InternalServerError()
+
+  protected def validatedInputFrom[A, B](
+      request: Request[IO],
+  )(using decoder: Decoder[A], transformer: Transformer[A, B]): IO[B] =
+    request
+      .as[A]
+      .flatMap(transformer.transform(_).validated)
+      .adaptError:
+        case error => InvalidRequest(error)
 
 object BaseRestController:
   trait Transformer[A, B]:

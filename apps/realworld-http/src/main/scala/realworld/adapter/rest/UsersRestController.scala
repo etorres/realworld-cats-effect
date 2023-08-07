@@ -1,7 +1,6 @@
 package es.eriktorr
 package realworld.adapter.rest
 
-import realworld.adapter.rest.JwtAuthMiddleware.jwtAuthMiddleware
 import realworld.adapter.rest.request.{LoginUserRequest, RegisterNewUserRequest, UpdateUserRequest}
 import realworld.adapter.rest.response.{
   GetCurrentUserResponse,
@@ -10,7 +9,7 @@ import realworld.adapter.rest.response.{
   UpdateUserResponse,
 }
 import realworld.domain.model.UserWithPassword.UserWithPlaintextPassword
-import realworld.domain.model.{Credentials, User}
+import realworld.domain.model.{Credentials, UserId}
 import realworld.domain.service.{AuthService, UsersService}
 
 import cats.effect.IO
@@ -22,9 +21,9 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 
 final class UsersRestController(authService: AuthService, usersService: UsersService)(using
     logger: SelfAwareStructuredLogger[IO],
-) extends BaseRestController:
+) extends BaseRestController(authService, usersService):
   val routes: HttpRoutes[IO] =
-    val publicRoutes: HttpRoutes[IO] = HttpRoutes.of[IO]:
+    val publicRoutes = HttpRoutes.of[IO]:
       case request @ POST -> Root / "users" =>
         (for
           newUser <- validatedInputFrom[RegisterNewUserRequest, UserWithPlaintextPassword](
@@ -41,22 +40,17 @@ final class UsersRestController(authService: AuthService, usersService: UsersSer
           response <- Ok(LoginUserResponse(user))
         yield response).handleErrorWith(contextFrom(request))
 
-    val secureRoutes = AuthedRoutes.of[User, IO]:
-      case request @ GET -> Root / "users" as user =>
-        Ok(GetCurrentUserResponse(user)).handleErrorWith(contextFrom(request.req))
+    val secureRoutes = AuthedRoutes.of[UserId, IO]:
+      case request @ GET -> Root / "users" as userId =>
+        Ok(GetCurrentUserResponse(???)).handleErrorWith(contextFrom(request.req))
 
-      case request @ PUT -> Root / "users" as user =>
+      case request @ PUT -> Root / "users" as userId =>
         (for
           updatedUser <- validatedInputFrom[UpdateUserRequest, UserWithPlaintextPassword](
             request.req,
           )
-          user <- usersService.update(updatedUser)
+          user <- usersService.update(updatedUser, userId)
           response <- Ok(UpdateUserResponse(user))
         yield response).handleErrorWith(contextFrom(request.req))
 
-    publicRoutes <+> jwtAuthMiddleware[User](token =>
-      for
-        email <- authService.verify(token)
-        user <- usersService.findBy(email)
-      yield user,
-    )(secureRoutes)
+    publicRoutes <+> authMiddleware(secureRoutes)

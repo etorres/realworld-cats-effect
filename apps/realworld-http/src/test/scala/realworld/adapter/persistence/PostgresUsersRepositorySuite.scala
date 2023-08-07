@@ -3,6 +3,7 @@ package realworld.adapter.persistence
 
 import realworld.adapter.persistence.PostgresUsersRepositorySuite.{
   createUserTestCaseGen,
+  findUserIdTestCaseGen,
   findUserWithPasswordTestCaseGen,
   updateUserTestCaseGen,
 }
@@ -14,7 +15,7 @@ import realworld.domain.model.RealWorldGenerators.{
   userWithHashPasswordGen,
 }
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
-import realworld.domain.model.{Email, User}
+import realworld.domain.model.{Email, User, UserId}
 import realworld.domain.service.UsersRepository.AlreadyInUseError
 import realworld.shared.spec.CollectionGenerators.nDistinct
 import realworld.shared.spec.PostgresSuite
@@ -78,15 +79,15 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
           )
           .map(_ => ())
 
-  test("should find a user by email"):
-    forAllF(findUserWithPasswordTestCaseGen): testCase =>
+  test("should find a user Id by email"):
+    forAllF(findUserIdTestCaseGen): testCase =>
       testTransactor.resource.use: transactor =>
         val testRepository = PostgresUsersTestRepository(transactor)
         val usersRepository = PostgresUsersRepository(transactor)
         (for
           _ <- testCase.rows.traverse_(testRepository.add)
-          obtained <- usersRepository.findUserBy(testCase.email)
-        yield obtained).assertEquals(testCase.expected.map(_.user))
+          obtained <- usersRepository.findUserIdBy(testCase.email)
+        yield obtained).assertEquals(testCase.expected)
 
   test("should find a user with her password by email"):
     forAllF(findUserWithPasswordTestCaseGen): testCase =>
@@ -105,7 +106,7 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
         val usersRepository = PostgresUsersRepository(transactor)
         (for
           _ <- testCase.rows.traverse_(testRepository.add)
-          obtained <- usersRepository.update(testCase.updated)
+          obtained <- usersRepository.update(testCase.updated, ???)
           recovered <- usersRepository.findUserWithPasswordBy(testCase.updated.user.email)
         yield (obtained, recovered)).assertEquals((testCase.expected.user, Some(testCase.expected)))
 
@@ -126,6 +127,30 @@ object PostgresUsersRepositorySuite:
     expected = userWithPassword.user
     row = userWithPassword.toUserRow(userId)
   yield CreateUserTestCase(expected, userWithPassword, row)
+
+  final private case class FindUserIdTestCase(
+      email: Email,
+      expected: Option[UserId],
+      rows: List[UserRow],
+  )
+
+  private val findUserIdTestCaseGen = for
+    emails <- nDistinct(7, emailGen)
+    selectedEmail :: otherEmails = emails: @unchecked
+    userIds <- nDistinct(7, userIdGen)
+    selectedUserId :: otherUserIds = userIds: @unchecked
+    selectedUserWithPassword <- userWithHashPasswordGen(userGen =
+      userGen(emailGen = selectedEmail, tokenGen = None),
+    )
+    otherUsersWithPassword <- otherEmails.traverse(email =>
+      userWithHashPasswordGen(userGen = userGen(emailGen = email, tokenGen = None)),
+    )
+    expected = Some(UserId.unsafeFrom(selectedUserId))
+    rows = ((selectedUserWithPassword -> selectedUserId) :: otherUsersWithPassword
+      .zip(otherUserIds))
+      .map:
+        case (userWithPassword, userId) => userWithPassword.toUserRow(userId)
+  yield FindUserIdTestCase(selectedEmail, expected, rows)
 
   final private case class FindUserWithPasswordTestCase(
       email: Email,
