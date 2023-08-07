@@ -74,7 +74,7 @@ final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectS
 
   test("should update an existing user"):
     forAllF(successfulUpdateAnExistingUser): testCase =>
-      given Decoder[UpdateUserResponse] = UpdateUserResponse.updateUserResponseJsonDecoder
+      given Decoder[UpdateUserResponse] = UpdateUserResponse.updatedUserResponseJsonDecoder
       (for (result, finalState) <- runWith(
           testCase.initialState,
           Request(method = Method.PUT, uri = uri"/api/users")

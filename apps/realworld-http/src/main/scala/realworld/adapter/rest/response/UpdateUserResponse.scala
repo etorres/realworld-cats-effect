@@ -9,6 +9,6 @@ import io.circe.{Decoder, Encoder}
 final case class UpdateUserResponse(user: User)
 
 object UpdateUserResponse:
-  given updateUserResponseJsonDecoder: Decoder[UpdateUserResponse] = deriveDecoder
+  given updatedUserResponseJsonDecoder: Decoder[UpdateUserResponse] = deriveDecoder
 
-  given updateUserResponseJsonEncoder: Encoder[UpdateUserResponse] = deriveEncoder
+  given updatedUserResponseJsonEncoder: Encoder[UpdateUserResponse] = deriveEncoder

@@ -8,13 +8,11 @@ import realworld.domain.model.User.Username
 import realworld.domain.model.UserWithPassword.UserWithPlaintextPassword
 import realworld.domain.model.{Email, Password, User as UserModel}
 import realworld.shared.Secret
+import realworld.shared.data.refined.StringExtensions.toUri
 
-import cats.implicits.{catsSyntaxTuple3Semigroupal, catsSyntaxValidatedIdBinCompat0}
+import cats.implicits.{catsSyntaxTuple3Semigroupal, toTraverseOps}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
-
-import java.net.URI
-import scala.util.{Failure, Success, Try}
 
 final case class UpdateUserRequest(user: User)
 
@@ -27,9 +25,9 @@ object UpdateUserRequest:
       image: Option[String],
   )
 
-  given updateUserRequestJsonDecoder: Decoder[UpdateUserRequest] = deriveDecoder
+  given updatedUserRequestJsonDecoder: Decoder[UpdateUserRequest] = deriveDecoder
 
-  given updateUserRequestJsonEncoder: Encoder[UpdateUserRequest] = deriveEncoder
+  given updatedUserRequestJsonEncoder: Encoder[UpdateUserRequest] = deriveEncoder
 
   given registerNewUserRequestTransformer
       : Transformer[UpdateUserRequest, UserWithPlaintextPassword] =
@@ -38,13 +36,11 @@ object UpdateUserRequest:
       (
         Email.from(request.user.email),
         Username.from(request.user.username),
-        Try(request.user.image.map(URI(_))) match
-          case Failure(exception) => exception.getMessage.invalidNec
-          case Success(value) => value.validNec,
+        request.user.image.traverse(_.toUri),
       ).mapN { case (email, username, uri) =>
         UserModel(email, None, username, request.user.bio, uri)
       }.andThen(user =>
         Password
           .from[PlainText](request.user.password.value)
-          .map(password => UserWithPlaintextPassword(user, password)),
+          .map(UserWithPlaintextPassword(user, _)),
       )
