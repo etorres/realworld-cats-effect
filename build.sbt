@@ -77,7 +77,6 @@ lazy val `realworld-http` = project
       "org.typelevel" %% "cats-effect" % "3.5.1",
       "org.typelevel" %% "cats-effect-std" % "3.5.1",
       "org.typelevel" %% "log4cats-core" % "2.6.0",
-      "org.typelevel" %% "log4cats-noop" % "2.6.0" % Test,
       "org.typelevel" %% "log4cats-slf4j" % "2.6.0",
     ),
     dockerApiVersion := com.typesafe.sbt.packager.docker.DockerApiVersion.parse("1.43"),

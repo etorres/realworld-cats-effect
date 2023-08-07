@@ -19,7 +19,7 @@ import io.github.iltotore.iron.refineOption
 import org.http4s.server.middleware.RequestId
 import org.http4s.{EntityDecoder, Request, Status}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
-import org.typelevel.log4cats.noop.NoOpLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object RealWorldHttpAppSuiteRunner:
   final case class RealWorldHttpAppState(
@@ -62,7 +62,7 @@ object RealWorldHttpAppSuiteRunner:
     usersRepository = FakeUsersRepository(usersRepositoryStateRef)
     usersService = UsersService(authService, cipherService, usersRepository)
     httpApp =
-      given SelfAwareStructuredLogger[IO] = NoOpLogger.impl[IO]
+      given SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]
       RealWorldHttpApp(
         authService,
         healthService,
