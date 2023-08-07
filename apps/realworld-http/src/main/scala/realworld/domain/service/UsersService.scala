@@ -15,9 +15,7 @@ final class UsersService(
 ):
   def findBy(email: Email): IO[User] = for
     maybeUser <- usersRepository.findUserBy(email)
-    user <- maybeUser match
-      case Some(value) => IO.pure(value)
-      case None => IO.raiseError(UserNotFound(email))
+    user <- IO.fromOption(maybeUser)(UserNotFound(email))
   yield user
 
   def loginUserIdentifiedBy(credentials: Credentials): IO[User] = for

@@ -7,7 +7,6 @@ import realworld.adapter.persistence.PostgresUsersRepositorySuite.{
   updateUserTestCaseGen,
 }
 import realworld.adapter.persistence.row.UserRow
-import realworld.domain.model.Password.CipherText
 import realworld.domain.model.RealWorldGenerators.{
   emailGen,
   userGen,
@@ -21,7 +20,7 @@ import realworld.shared.spec.CollectionGenerators.nDistinct
 import realworld.shared.spec.PostgresSuite
 
 import cats.implicits.{toFoldableOps, toTraverseOps}
-import io.github.arainko.ducktape.*
+import monocle.syntax.all.{focus, refocus}
 import org.scalacheck.Gen
 import org.scalacheck.cats.implicits.genInstances
 import org.scalacheck.effect.PropF.forAllF
@@ -37,10 +36,12 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
     forAllF(
       for
         testCase <- createUserTestCaseGen
-        otherUsername <- usernameGen.retryUntil(_ != testCase.newUser.user.username, 100)
-      yield testCase.copy(newUser =
-        testCase.newUser.copy(user = testCase.newUser.user.copy(username = otherUsername)),
-      ),
+        username = testCase.focus(_.newUser.user.username)
+        otherUsernameTestCase <- usernameGen
+          .retryUntil(_ != username.get, 100)
+          .map: otherUsername =>
+            testCase.copy(newUser = username.replace(otherUsername).newUser)
+      yield otherUsernameTestCase,
     ): testCase =>
       testTransactor.resource.use: transactor =>
         val testRepository = PostgresUsersTestRepository(transactor)
@@ -58,10 +59,12 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
     forAllF(
       for
         testCase <- createUserTestCaseGen
-        otherEmail <- emailGen.retryUntil(_ != testCase.newUser.user.email, 100)
-      yield testCase.copy(newUser =
-        testCase.newUser.copy(user = testCase.newUser.user.copy(email = otherEmail)),
-      ),
+        email = testCase.focus(_.newUser.user.email)
+        otherEmailTestCase <- emailGen
+          .retryUntil(_ != email.get, 100)
+          .map: otherEmail =>
+            testCase.copy(newUser = email.replace(otherEmail).newUser)
+      yield otherEmailTestCase,
     ): testCase =>
       testTransactor.resource.use: transactor =>
         val testRepository = PostgresUsersTestRepository(transactor)
@@ -174,13 +177,12 @@ object PostgresUsersRepositorySuite:
 
   extension (userWithPassword: UserWithHashPassword)
     def toUserRow(userId: Int): UserRow =
-      userWithPassword
-        .into[UserRow]
-        .transform(
-          Field.const(_.userId, userId),
-          Field.computed(_.email, _.user.email),
-          Field.computed(_.username, _.user.username),
-          Field.computed(_.password, _.password.value),
-          Field.computed(_.bio, _.user.bio),
-          Field.computed(_.image, _.user.image.map(_.toString)),
-        )
+      val user = userWithPassword.user
+      UserRow(
+        userId,
+        user.email,
+        user.username,
+        userWithPassword.password.value,
+        user.bio,
+        user.image.map(_.toString),
+      )

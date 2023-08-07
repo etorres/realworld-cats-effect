@@ -57,7 +57,7 @@ lazy val `realworld-http` = project
       "com.monovore" %% "decline-effect" % "2.4.1",
       "com.password4j" % "password4j" % "1.7.1" exclude ("org.slf4j", "slf4j-api"),
       "com.zaxxer" % "HikariCP" % "5.0.1" exclude ("org.slf4j", "slf4j-api"),
-      "dev.optics" %% "monocle-macro" % "3.2.0",
+      "dev.optics" %% "monocle-macro" % "3.2.0" % Test,
       "io.circe" %% "circe-generic" % "0.14.5",
       "io.github.arainko" %% "ducktape" % "0.1.10",
       "io.github.iltotore" %% "iron-cats" % "2.2.0",
