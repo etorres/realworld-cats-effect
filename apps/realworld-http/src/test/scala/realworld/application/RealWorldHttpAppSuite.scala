@@ -143,9 +143,12 @@ object RealWorldHttpAppSuite:
           .collect { case (email, Some(token)) => email -> token }
           .toMap,
       )
-      .setUsersWithPassword(allUsers.map { case UserData(_, userId, userWithPassword) =>
-        userId -> userWithPassword
-      }.toMap)
+      .setUsersWithPassword(
+        List.empty,
+        allUsers.map { case UserData(_, userId, userWithPassword) =>
+          userId -> userWithPassword
+        }.toMap,
+      )
     expectedState = initialState.copy()
     request = Nil
     expectedResponse = (GetCurrentUserResponse(selectedUser.userWithPassword.user), Status.Ok)
@@ -176,9 +179,12 @@ object RealWorldHttpAppSuite:
           .collect { case (email, Some(token)) => email -> token }
           .toMap,
       )
-      .setUsersWithPassword(allUsers.map { case UserData(_, userId, userWithPassword) =>
-        userId -> userWithPassword
-      }.toMap)
+      .setUsersWithPassword(
+        List.empty,
+        allUsers.map { case UserData(_, userId, userWithPassword) =>
+          userId -> userWithPassword
+        }.toMap,
+      )
     expectedState = initialState.copy()
     request = LoginUserRequest(
       LoginUserRequest.User(
@@ -194,10 +200,12 @@ object RealWorldHttpAppSuite:
     user <- userGen(tokenGen = None, bioGen = None, imageGen = None)
     userId <- userIdGen
     userWithPassword <- userWithHashPasswordGen(userGen = user, passwordGen = password)
-    initialState = RealWorldHttpAppState.empty.setPasswords(
-      Map(password -> userWithPassword.password),
-    )
-    expectedState = initialState.setUsersWithPassword(Map(userId -> userWithPassword))
+    initialState = RealWorldHttpAppState.empty
+      .setPasswords(
+        Map(password -> userWithPassword.password),
+      )
+      .setUsersWithPassword(List(userId), Map.empty)
+    expectedState = initialState.setUsersWithPassword(List.empty, Map(userId -> userWithPassword))
     request = RegisterNewUserRequest(
       RegisterNewUserRequest.User(user.email, password.value, user.username),
     )
@@ -238,14 +246,18 @@ object RealWorldHttpAppSuite:
           .collect { case (email, Some(token)) => email -> token }
           .toMap,
       )
-      .setUsersWithPassword(allUsers.map { case UserData(_, userId, userWithPassword) =>
-        userId -> userWithPassword
-      }.toMap)
-    expectedState = initialState.setUsersWithPassword(allUsers.map {
-      case UserData(_, userId, userWithPassword) =>
-        userId -> (if userWithPassword.user.email != updatedUser.user.email then userWithPassword
-                   else updatedUser)
-    }.toMap)
+      .setUsersWithPassword(
+        List.empty,
+        allUsers.map { case UserData(_, userId, userWithPassword) =>
+          userId -> userWithPassword
+        }.toMap,
+      )
+    expectedState = initialState.setUsersWithPassword(
+      List.empty,
+      allUsers.map { case UserData(_, userId, userWithPassword) =>
+        userId -> (if userId != selectedUser.userId then userWithPassword else updatedUser)
+      }.toMap,
+    )
     request = UpdateUserRequest(
       UpdateUserRequest
         .User(

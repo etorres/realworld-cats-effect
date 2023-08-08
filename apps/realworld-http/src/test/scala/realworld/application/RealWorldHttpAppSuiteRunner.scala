@@ -34,8 +34,11 @@ object RealWorldHttpAppSuiteRunner:
     def setPasswords(
         passwords: Map[Password[PlainText], Password[CipherText]],
     ): RealWorldHttpAppState = copy(cipherServiceState = cipherServiceState.setPasswords(passwords))
-    def setUsersWithPassword(users: Map[UserId, UserWithHashPassword]): RealWorldHttpAppState =
-      copy(usersRepositoryState = usersRepositoryState.copy(users))
+    def setUsersWithPassword(
+        userIds: List[UserId],
+        users: Map[UserId, UserWithHashPassword],
+    ): RealWorldHttpAppState =
+      copy(usersRepositoryState = usersRepositoryState.setUsers(userIds, users))
 
   object RealWorldHttpAppState:
     def empty: RealWorldHttpAppState = RealWorldHttpAppState(

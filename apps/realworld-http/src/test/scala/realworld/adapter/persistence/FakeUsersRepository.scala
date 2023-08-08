@@ -11,9 +11,13 @@ import cats.effect.{IO, Ref}
 final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends UsersRepository:
   override def create(newUser: UserWithHashPassword): IO[User] = for
     maybeUser <- stateRef.tryModify(currentState =>
-      (currentState.userIds.headOption match
-        case Some(userId) => currentState.copy(currentState.users + (userId -> newUser))
-        case None => currentState
+      (currentState.userIds match
+        case ::(head, next) =>
+          currentState.copy(
+            userIds = next,
+            users = currentState.users + (head -> newUser),
+          )
+        case Nil => currentState
       ) -> newUser.user,
     )
     user <- IO.fromOption(maybeUser)(IllegalArgumentException("User ids exhausted"))
@@ -37,7 +41,7 @@ final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends
     maybeUser <- stateRef.tryModify(currentState =>
       (currentState.users.get(userId) match
         case Some(userWithPassword) =>
-          currentState.copy(currentState.users + (userId -> updatedUser))
+          currentState.copy(users = currentState.users + (userId -> updatedUser))
         case None => currentState
       ) -> updatedUser.user,
     )
@@ -46,9 +50,13 @@ final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends
 
 object FakeUsersRepository:
   final case class UsersRepositoryState(
-      users: Map[UserId, UserWithHashPassword],
       userIds: List[UserId],
-  )
+      users: Map[UserId, UserWithHashPassword],
+  ):
+    def setUsers(
+        newUserIds: List[UserId],
+        newUsers: Map[UserId, UserWithHashPassword],
+    ): UsersRepositoryState = copy(newUserIds, newUsers)
 
   object UsersRepositoryState:
-    def empty: UsersRepositoryState = UsersRepositoryState(Map.empty, List.empty)
+    def empty: UsersRepositoryState = UsersRepositoryState(List.empty, Map.empty)
