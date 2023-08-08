@@ -27,12 +27,12 @@ final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends
   override def findUserBy(userId: UserId): IO[Option[User]] =
     stateRef.get.map(_.users.get(userId).map(_.user))
 
-  override def findUserBy(username: Username): IO[Option[User]] = stateRef.get.map(
+  override def findUserWithIdBy(username: Username): IO[Option[(User, UserId)]] = stateRef.get.map(
     _.users
       .find { case (_, userWithPassword) =>
         userWithPassword.user.username == username
       }
-      .map { case (_, userWithPassword) => userWithPassword.user },
+      .map { case (userId, userWithPassword) => userWithPassword.user -> userId },
   )
 
   override def findUserIdBy(email: Email): IO[Option[UserId]] = stateRef.get.map(

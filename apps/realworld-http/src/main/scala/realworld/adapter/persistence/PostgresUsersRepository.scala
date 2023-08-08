@@ -53,19 +53,20 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
     user = userWithPassword.map(_.user)
   yield user
 
-  override def findUserBy(username: Username): IO[Option[User]] = for
-    userRow <- sql"""select
-                    |  user_id, email, username, password, bio, image
-                    |from users
-                    |where username = $username""".stripMargin
+  override def findUserWithIdBy(username: Username): IO[Option[(User, UserId)]] = for
+    maybeUserRow <- sql"""select
+                         |  user_id, email, username, password, bio, image
+                         |from users
+                         |where username = $username""".stripMargin
       .query[UserRow]
       .option
       .transact(transactor)
-    userWithPassword <- userRow.traverse(
-      _.toUserWithPassword[CipherText, UserWithHashPassword].validated,
-    )
-    user = userWithPassword.map(_.user)
-  yield user
+    userWithId <- maybeUserRow.traverse: userRow =>
+      for
+        userId <- UserId.from(userRow.userId).validated
+        userWithPassword <- userRow.toUserWithPassword[CipherText, UserWithHashPassword].validated
+      yield userWithPassword.user -> userId
+  yield userWithId
 
   override def findUserIdBy(email: Email): IO[Option[UserId]] = for
     userRow <- findBy(email)

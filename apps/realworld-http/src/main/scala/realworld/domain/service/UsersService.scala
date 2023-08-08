@@ -29,10 +29,10 @@ final class UsersService(
   yield user
 
   def profileFor(username: Username, userId: UserId): IO[Profile] = for
-    maybeUser <- usersRepository.findUserBy(username)
-    user <- IO.fromOption(maybeUser)(UserNotFound("username", username))
-    following <- followersRepository.isFollowing(???, userId)
-  yield Profile(user.username, user.bio, user.image, following)
+    maybeUserWithId <- usersRepository.findUserWithIdBy(username)
+    (followedUser, followedId) <- IO.fromOption(maybeUserWithId)(UserNotFound("username", username))
+    following <- followersRepository.isFollowing(followedId, userId)
+  yield Profile(followedUser.username, followedUser.bio, followedUser.image, following)
 
   def register(newUser: UserWithPlaintextPassword): IO[User] = for
     hash <- cipherService.cipher(newUser.password)

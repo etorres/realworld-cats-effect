@@ -79,7 +79,7 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
           obtained <- usersRepository.findUserBy(testCase.userId)
         yield obtained).assertEquals(testCase.expected)
 
-  test("should find a user by her username"):
+  test("should find a user with her Id by username"):
     fail("not implemented")
 
   test("should find a user Id by email"):

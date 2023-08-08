@@ -1,8 +1,9 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.adapter.persistence.FakeUsersRepository
+import realworld.adapter.persistence.FakeFollowersRepository.FollowersRepositoryState
 import realworld.adapter.persistence.FakeUsersRepository.UsersRepositoryState
+import realworld.adapter.persistence.{FakeFollowersRepository, FakeUsersRepository}
 import realworld.domain.model.Password.{CipherText, PlainText}
 import realworld.domain.model.User.Token
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
@@ -25,6 +26,7 @@ object RealWorldHttpAppSuiteRunner:
   final case class RealWorldHttpAppState(
       authServiceState: AuthServiceState,
       cipherServiceState: CipherServiceState,
+      followersRepositoryState: FollowersRepositoryState,
       healthServiceState: HealthServiceState,
       usersRepositoryState: UsersRepositoryState,
   ):
@@ -44,6 +46,7 @@ object RealWorldHttpAppSuiteRunner:
     def empty: RealWorldHttpAppState = RealWorldHttpAppState(
       AuthServiceState.empty,
       CipherServiceState.empty,
+      FollowersRepositoryState.empty,
       HealthServiceState.unready,
       UsersRepositoryState.empty,
     )
@@ -53,17 +56,21 @@ object RealWorldHttpAppSuiteRunner:
   ): IO[(Either[Throwable, (A, Status)], RealWorldHttpAppState)] = for
     authServiceStateRef <- Ref.of[IO, AuthServiceState](initialState.authServiceState)
     cipherServiceStateRef <- Ref.of[IO, CipherServiceState](initialState.cipherServiceState)
+    followersRepositoryStateRef <- Ref.of[IO, FollowersRepositoryState](
+      initialState.followersRepositoryState,
+    )
     healthServiceStateRef <- Ref.of[IO, HealthServiceState](initialState.healthServiceState)
     usersRepositoryStateRef <- Ref.of[IO, UsersRepositoryState](
       initialState.usersRepositoryState,
     )
     authService = FakeAuthService(authServiceStateRef)
     cipherService = FakeCipherService(cipherServiceStateRef)
+    followersRepository = FakeFollowersRepository(followersRepositoryStateRef)
     healthService = FakeHealthService(healthServiceStateRef)
     metricsService = FakeMetricsService()
     traceService = FakeTraceService()
     usersRepository = FakeUsersRepository(usersRepositoryStateRef)
-    usersService = UsersService(authService, cipherService, ???, usersRepository)
+    usersService = UsersService(authService, cipherService, followersRepository, usersRepository)
     httpApp =
       given SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]
       RealWorldHttpApp(
@@ -87,11 +94,13 @@ object RealWorldHttpAppSuiteRunner:
     yield (body, status)).attempt
     finalAuthServiceState <- authServiceStateRef.get
     finalCipherServiceState <- cipherServiceStateRef.get
+    finalFollowersRepositoryState <- followersRepositoryStateRef.get
     finalHealthServiceState <- healthServiceStateRef.get
     finalUsersRepositoryState <- usersRepositoryStateRef.get
     finalState = initialState.copy(
       authServiceState = finalAuthServiceState,
       cipherServiceState = finalCipherServiceState,
+      followersRepositoryState = finalFollowersRepositoryState,
       healthServiceState = finalHealthServiceState,
       usersRepositoryState = finalUsersRepositoryState,
     )
