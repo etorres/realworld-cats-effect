@@ -25,7 +25,7 @@ final case class UserRow(
 
 object UserRow:
   extension (userRow: UserRow)
-    def toUser: AllErrorsOr[User] =
+    private def toUser: AllErrorsOr[User] =
       (Email.from(userRow.email), Username.from(userRow.username), userRow.image.traverse(_.toUri))
         .mapN { case (email, username, image) => User(email, None, username, userRow.bio, image) }
 
