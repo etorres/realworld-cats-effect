@@ -10,7 +10,7 @@ import cats.effect.{IO, Ref}
 final class FakeFollowersRepository(stateRef: Ref[IO, FollowersRepositoryState])
     extends FollowersRepository:
   override def isFollowing(followed: UserId, follower: UserId): IO[Boolean] =
-    stateRef.get.map(_.followers.get(followed).map(_.contains(follower)).nonEmpty)
+    stateRef.get.map(_.followers.get(followed).exists(_.contains(follower)))
 
 object FakeFollowersRepository:
   final case class FollowersRepositoryState(followers: Map[UserId, List[UserId]]):

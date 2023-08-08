@@ -22,28 +22,30 @@ import org.http4s.{EntityDecoder, Request, Status}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-object RealWorldHttpAppSuiteRunner:
-  final case class RealWorldHttpAppState(
+object HttpAppSuiteRunner:
+  final case class HttpAppState(
       authServiceState: AuthServiceState,
       cipherServiceState: CipherServiceState,
       followersRepositoryState: FollowersRepositoryState,
       healthServiceState: HealthServiceState,
       usersRepositoryState: UsersRepositoryState,
   ):
-    def setTokens(tokens: Map[Email, Token]): RealWorldHttpAppState = copy(
-      authServiceState = authServiceState.setTokens(tokens),
-    )
+    def setFollowers(followers: Map[UserId, List[UserId]]): HttpAppState =
+      copy(followersRepositoryState = followersRepositoryState.setFollowers(followers))
     def setPasswords(
         passwords: Map[Password[PlainText], Password[CipherText]],
-    ): RealWorldHttpAppState = copy(cipherServiceState = cipherServiceState.setPasswords(passwords))
+    ): HttpAppState = copy(cipherServiceState = cipherServiceState.setPasswords(passwords))
+    def setTokens(tokens: Map[Email, Token]): HttpAppState = copy(
+      authServiceState = authServiceState.setTokens(tokens),
+    )
     def setUsersWithPassword(
         userIds: List[UserId],
         users: Map[UserId, UserWithHashPassword],
-    ): RealWorldHttpAppState =
+    ): HttpAppState =
       copy(usersRepositoryState = usersRepositoryState.setUsers(userIds, users))
 
-  object RealWorldHttpAppState:
-    def empty: RealWorldHttpAppState = RealWorldHttpAppState(
+  object HttpAppState:
+    def empty: HttpAppState = HttpAppState(
       AuthServiceState.empty,
       CipherServiceState.empty,
       FollowersRepositoryState.empty,
@@ -51,9 +53,9 @@ object RealWorldHttpAppSuiteRunner:
       UsersRepositoryState.empty,
     )
 
-  def runWith[A](initialState: RealWorldHttpAppState, request: Request[IO])(using
+  def runWith[A](initialState: HttpAppState, request: Request[IO])(using
       entityDecoder: EntityDecoder[IO, A],
-  ): IO[(Either[Throwable, (A, Status)], RealWorldHttpAppState)] = for
+  ): IO[(Either[Throwable, (A, Status)], HttpAppState)] = for
     authServiceStateRef <- Ref.of[IO, AuthServiceState](initialState.authServiceState)
     cipherServiceStateRef <- Ref.of[IO, CipherServiceState](initialState.cipherServiceState)
     followersRepositoryStateRef <- Ref.of[IO, FollowersRepositoryState](

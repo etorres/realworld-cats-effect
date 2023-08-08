@@ -8,23 +8,22 @@ import realworld.adapter.rest.response.{
   RegisterNewUserResponse,
   UpdateUserResponse,
 }
-import realworld.application.RealWorldHttpAppSuite.{
+import realworld.application.HttpAppSuite.{TestCase, UserData}
+import realworld.application.HttpAppSuiteRunner.{runWith, HttpAppState}
+import realworld.application.UsersRestControllerSuite.{
   successfulGetCurrentUserGen,
   successfulUpdateAnExistingUser,
   successfulUserLoginGen,
   successfulUserRegistrationGen,
 }
-import realworld.application.RealWorldHttpAppSuiteRunner.{runWith, RealWorldHttpAppState}
-import realworld.domain.model.Password.{CipherText, PlainText}
+import realworld.domain.model.Password.CipherText
 import realworld.domain.model.RealWorldGenerators.*
 import realworld.domain.model.User.Username
-import realworld.domain.model.UserWithPassword.UserWithHashPassword
-import realworld.domain.model.{Email, Password, User, UserId}
+import realworld.domain.model.{Email, User}
 import realworld.shared.spec.CollectionGenerators.nDistinct
 
 import cats.implicits.toTraverseOps
 import io.circe.Decoder
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.http4s.Credentials.Token
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.headers.Authorization
@@ -34,7 +33,7 @@ import org.scalacheck.Gen
 import org.scalacheck.cats.implicits.genInstances
 import org.scalacheck.effect.PropF.forAllF
 
-final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectSuite:
+final class UsersRestControllerSuite extends HttpAppSuite:
   test("should get the current user"):
     forAllF(successfulGetCurrentUserGen): testCase =>
       given Decoder[GetCurrentUserResponse] =
@@ -87,21 +86,7 @@ final class RealWorldHttpAppSuite extends CatsEffectSuite with ScalaCheckEffectS
         assertEquals(finalState, testCase.expectedState)
       }
 
-object RealWorldHttpAppSuite:
-  final private case class TestCase[A, B](
-      authorization: Option[Authorization],
-      initialState: RealWorldHttpAppState,
-      expectedState: RealWorldHttpAppState,
-      request: A,
-      expectedResponse: (B, Status),
-  )
-
-  final private case class UserData(
-      password: Password[PlainText],
-      userId: UserId,
-      userWithPassword: UserWithHashPassword,
-  )
-
+object UsersRestControllerSuite:
   private val successfulGetCurrentUserGen = for
     userKeys <- uniqueUserKeys(7)
     tokens <- nDistinct(7, tokenGen)
@@ -121,7 +106,7 @@ object RealWorldHttpAppSuite:
         selectedUser.userWithPassword.user.token.map(_.value.value).getOrElse(""),
       ),
     )
-    initialState = RealWorldHttpAppState.empty
+    initialState = HttpAppState.empty
       .setTokens(
         allUsers
           .map { case UserData(_, _, userWithPassword) =>
@@ -154,7 +139,7 @@ object RealWorldHttpAppSuite:
         yield UserData(password, key.userId, userWithPassword)
       }
     allUsers = selectedUser :: otherUsers
-    initialState = RealWorldHttpAppState.empty
+    initialState = HttpAppState.empty
       .setPasswords(allUsers.map { case UserData(password, _, userWithPassword) =>
         password -> userWithPassword.password
       }.toMap)
@@ -187,7 +172,7 @@ object RealWorldHttpAppSuite:
     user <- userGen(tokenGen = None, bioGen = None, imageGen = None)
     userId <- userIdGen
     userWithPassword <- userWithHashPasswordGen(userGen = user, passwordGen = password)
-    initialState = RealWorldHttpAppState.empty
+    initialState = HttpAppState.empty
       .setPasswords(
         Map(password -> userWithPassword.password),
       )
@@ -221,7 +206,7 @@ object RealWorldHttpAppSuite:
         selectedUser.userWithPassword.user.token.map(_.value.value).getOrElse(""),
       ),
     )
-    initialState = RealWorldHttpAppState.empty
+    initialState = HttpAppState.empty
       .setPasswords(allUsers.map { case UserData(password, _, userWithPassword) =>
         password -> userWithPassword.password
       }.toMap + (updatedPassword -> updatedUser.password))

@@ -1,11 +1,12 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.adapter.rest.UsersRestController
+import realworld.adapter.rest.{ProfileRestController, UsersRestController}
 import realworld.domain.service.{AuthService, UsersService}
 import realworld.shared.adapter.rest.{HealthService, MetricsService, TraceService}
 
 import cats.effect.IO
+import cats.implicits.toSemigroupKOps
 import org.http4s.dsl.io.*
 import org.http4s.server.Router
 import org.http4s.server.middleware.{GZip, Logger as Http4sLogger, RequestId}
@@ -23,7 +24,15 @@ final class RealWorldHttpApp(
     enableLogger: Boolean = false,
 )(using logger: SelfAwareStructuredLogger[IO]):
   private val apiEndpoint: HttpRoutes[IO] = metricsService
-    .metricsFor(UsersRestController(authService, usersService).routes)
+    .metricsFor(
+      UsersRestController(
+        authService,
+        usersService,
+      ).routes <+> ProfileRestController(
+        authService,
+        usersService,
+      ).routes,
+    )
     .pipe: routes =>
       // Allow the compression of the Response body using GZip
       GZip(routes)
