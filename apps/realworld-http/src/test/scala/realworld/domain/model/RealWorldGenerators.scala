@@ -26,6 +26,8 @@ object RealWorldGenerators:
 
   val tokenGen: Gen[Token] = alphaNumericStringBetween(3, 12).map(Token.unsafeFrom)
 
+  val userIdGen: Gen[UserId] = Gen.choose(1, 10000).map(UserId.unsafeFrom)
+
   val usernameGen: Gen[Username] = alphaNumericStringBetween(3, 12).map(Username.unsafeFrom)
 
   def userGen(

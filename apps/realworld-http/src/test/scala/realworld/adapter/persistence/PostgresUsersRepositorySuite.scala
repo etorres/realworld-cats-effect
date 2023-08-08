@@ -1,19 +1,9 @@
 package es.eriktorr
 package realworld.adapter.persistence
 
-import realworld.adapter.persistence.PostgresUsersRepositorySuite.{
-  createUserTestCaseGen,
-  findUserIdTestCaseGen,
-  findUserWithPasswordTestCaseGen,
-  updateUserTestCaseGen,
-}
+import realworld.adapter.persistence.PostgresUsersRepositorySuite.*
 import realworld.adapter.persistence.row.UserRow
-import realworld.domain.model.RealWorldGenerators.{
-  emailGen,
-  userGen,
-  usernameGen,
-  userWithHashPasswordGen,
-}
+import realworld.domain.model.RealWorldGenerators.*
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
 import realworld.domain.model.{Email, User, UserId}
 import realworld.domain.service.UsersRepository.AlreadyInUseError
@@ -79,6 +69,16 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
           )
           .map(_ => ())
 
+  test("should find a user by her Id"):
+    forAllF(findUserTestCaseGen): testCase =>
+      testTransactor.resource.use: transactor =>
+        val testRepository = PostgresUsersTestRepository(transactor)
+        val usersRepository = PostgresUsersRepository(transactor)
+        (for
+          _ <- testCase.rows.traverse_(testRepository.add)
+          obtained <- usersRepository.findUserBy(testCase.userId)
+        yield obtained).assertEquals(testCase.expected)
+
   test("should find a user Id by email"):
     forAllF(findUserIdTestCaseGen): testCase =>
       testTransactor.resource.use: transactor =>
@@ -106,13 +106,11 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
         val usersRepository = PostgresUsersRepository(transactor)
         (for
           _ <- testCase.rows.traverse_(testRepository.add)
-          obtained <- usersRepository.update(testCase.updated, ???)
+          obtained <- usersRepository.update(testCase.updated, testCase.userId)
           recovered <- usersRepository.findUserWithPasswordBy(testCase.updated.user.email)
         yield (obtained, recovered)).assertEquals((testCase.expected.user, Some(testCase.expected)))
 
 object PostgresUsersRepositorySuite:
-  private val userIdGen = Gen.choose(1, 10000)
-
   final private case class CreateUserTestCase(
       expected: User,
       newUser: UserWithHashPassword,
@@ -127,6 +125,30 @@ object PostgresUsersRepositorySuite:
     expected = userWithPassword.user
     row = userWithPassword.toUserRow(userId)
   yield CreateUserTestCase(expected, userWithPassword, row)
+
+  final private case class FindUserTestCase(
+      expected: Option[User],
+      rows: List[UserRow],
+      userId: UserId,
+  )
+
+  private val findUserTestCaseGen = for
+    emails <- nDistinct(7, emailGen)
+    selectedEmail :: otherEmails = emails: @unchecked
+    userIds <- nDistinct(7, userIdGen)
+    selectedUserId :: otherUserIds = userIds: @unchecked
+    selectedUserWithPassword <- userWithHashPasswordGen(userGen =
+      userGen(emailGen = selectedEmail, tokenGen = None),
+    )
+    otherUsersWithPassword <- otherEmails.traverse(email =>
+      userWithHashPasswordGen(userGen = userGen(emailGen = email, tokenGen = None)),
+    )
+    expected = Some(selectedUserWithPassword.user)
+    rows = ((selectedUserWithPassword -> selectedUserId) :: otherUsersWithPassword
+      .zip(otherUserIds))
+      .map:
+        case (userWithPassword, userId) => userWithPassword.toUserRow(userId)
+  yield FindUserTestCase(expected, rows, selectedUserId)
 
   final private case class FindUserIdTestCase(
       email: Email,
@@ -179,12 +201,14 @@ object PostgresUsersRepositorySuite:
       expected: UserWithHashPassword,
       rows: List[UserRow],
       updated: UserWithHashPassword,
+      userId: UserId,
   )
 
   private val updateUserTestCaseGen = for
     emails <- nDistinct(7, emailGen)
-    userIds <- nDistinct(7, userIdGen)
     selectedEmail :: otherEmails = emails: @unchecked
+    userIds <- nDistinct(7, userIdGen)
+    selectedUserId :: otherUserIds = userIds: @unchecked
     selectedUserWithPassword <- userWithHashPasswordGen(userGen =
       userGen(emailGen = selectedEmail, tokenGen = None),
     )
@@ -194,11 +218,11 @@ object PostgresUsersRepositorySuite:
     updated <- userWithHashPasswordGen(userGen(emailGen = selectedEmail, tokenGen = None))
       .retryUntil(_ != selectedUserWithPassword, 100)
     expected = updated
-    rows = (selectedUserWithPassword :: otherUsersWithPassword)
-      .zip(userIds)
+    rows = ((selectedUserWithPassword -> selectedUserId) :: otherUsersWithPassword
+      .zip(otherUserIds))
       .map:
         case (userWithPassword, userId) => userWithPassword.toUserRow(userId)
-  yield UpdateUserTestCase(expected, rows, updated)
+  yield UpdateUserTestCase(expected, rows, updated, selectedUserId)
 
   extension (userWithPassword: UserWithHashPassword)
     def toUserRow(userId: Int): UserRow =

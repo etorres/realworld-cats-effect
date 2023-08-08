@@ -12,6 +12,8 @@ trait UsersRepository:
 
   def findUserIdBy(email: Email): IO[Option[UserId]]
 
+  def findUserBy(userId: UserId): IO[Option[User]]
+
   def findUserWithPasswordBy(email: Email): IO[Option[UserWithHashPassword]]
 
   def update(updatedUser: UserWithHashPassword, userId: UserId): IO[User]

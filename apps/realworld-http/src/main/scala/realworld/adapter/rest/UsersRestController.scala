@@ -42,7 +42,10 @@ final class UsersRestController(authService: AuthService, usersService: UsersSer
 
     val secureRoutes = AuthedRoutes.of[UserId, IO]:
       case request @ GET -> Root / "users" as userId =>
-        Ok(GetCurrentUserResponse(???)).handleErrorWith(contextFrom(request.req))
+        (for
+          user <- usersService.userFor(userId)
+          response <- Ok(GetCurrentUserResponse(user))
+        yield response).handleErrorWith(contextFrom(request.req))
 
       case request @ PUT -> Root / "users" as userId =>
         (for

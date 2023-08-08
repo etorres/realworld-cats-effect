@@ -38,6 +38,14 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
       AlreadyInUseError(serverErrorMessage.getConstraint.nn, error)
   }
 
+  override def findUserBy(userId: UserId): IO[Option[User]] = for
+    userRow <- findBy(userId)
+    userWithPassword <- userRow.traverse(
+      _.toUserWithPassword[CipherText, UserWithHashPassword].validated,
+    )
+    user = userWithPassword.map(_.user)
+  yield user
+
   override def findUserIdBy(email: Email): IO[Option[UserId]] = for
     userRow <- findBy(email)
     userId <- userRow.traverse(x => UserId.from(x.userId).validated)
@@ -68,6 +76,15 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
          |  user_id, email, username, password, bio, image
          |from users
          |where email = $email""".stripMargin
+      .query[UserRow]
+      .option
+      .transact(transactor)
+
+  private def findBy(userId: UserId): IO[Option[UserRow]] =
+    sql"""select
+         |  user_id, email, username, password, bio, image
+         |from users
+         |where user_id = $userId""".stripMargin
       .query[UserRow]
       .option
       .transact(transactor)

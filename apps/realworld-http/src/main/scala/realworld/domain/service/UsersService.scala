@@ -37,12 +37,16 @@ final class UsersService(
   def update(updatedUser: UserWithPlaintextPassword, userId: UserId): IO[User] = for
     hash <- cipherService.cipher(updatedUser.password)
     user <- usersRepository.update(updatedUser.withHash(hash), userId)
-    _ <- IO.raiseError(IllegalArgumentException(s"Not implemented $userId")) // TODO
+  yield user
+
+  def userFor(userId: UserId): IO[User] = for
+    maybeUser <- usersRepository.findUserBy(userId)
+    user <- IO.fromOption(maybeUser)(UserNotFound("Id", userId))
   yield user
 
   def userIdFor(email: Email): IO[UserId] = for
     maybeUserId <- usersRepository.findUserIdBy(email)
-    userId <- IO.fromOption(maybeUserId)(UserNotFound(email))
+    userId <- IO.fromOption(maybeUserId)(UserNotFound("email", email))
   yield userId
 
 object UsersService:
@@ -51,5 +55,5 @@ object UsersService:
   final case class AccessForbidden(email: Email)
       extends UsersServiceError(s"Access forbidden for user identified by: $email")
 
-  final case class UserNotFound(email: Email)
-      extends UsersServiceError(s"No user found with email: $email")
+  final case class UserNotFound[A](name: String, value: A)
+      extends UsersServiceError(s"No user found with $name: ${value.toString}")

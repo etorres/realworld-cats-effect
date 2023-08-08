@@ -19,6 +19,9 @@ final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends
     user <- IO.fromOption(maybeUser)(IllegalArgumentException("User ids exhausted"))
   yield user
 
+  override def findUserBy(userId: UserId): IO[Option[User]] =
+    stateRef.get.map(_.users.get(userId).map(_.user))
+
   override def findUserIdBy(email: Email): IO[Option[UserId]] = stateRef.get.map(
     _.users
       .find { case (_, userWithPassword) =>
