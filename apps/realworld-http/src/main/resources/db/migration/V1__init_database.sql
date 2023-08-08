@@ -6,3 +6,9 @@ CREATE TABLE users (
     bio TEXT,
     image TEXT
 );
+
+CREATE TABLE followers (
+    user_id INTEGER NOT NULL REFERENCES users (user_id),
+    follower_id INTEGER NOT NULL REFERENCES users (user_id),
+    PRIMARY KEY (user_id, follower_id)
+);

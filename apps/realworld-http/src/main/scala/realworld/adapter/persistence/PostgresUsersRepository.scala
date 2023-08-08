@@ -2,12 +2,13 @@ package es.eriktorr
 package realworld.adapter.persistence
 
 import realworld.adapter.persistence.PostgresUsersRepository.given
-import realworld.adapter.persistence.SecretDoobieMapper.secretDoobieMapper
+import realworld.adapter.persistence.mappers.SecretDoobieMapper.secretDoobieMapper
+import realworld.adapter.persistence.mappers.UserIdDoobieMapper.userIdDoobieMapper
 import realworld.adapter.persistence.row.UserRow
+import realworld.domain.model.*
 import realworld.domain.model.Password.CipherText
 import realworld.domain.model.User.Username
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
-import realworld.domain.model.{Email, Password, User, UserId}
 import realworld.domain.service.UsersRepository
 import realworld.domain.service.UsersRepository.AlreadyInUseError
 import realworld.shared.Secret
@@ -39,7 +40,27 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
   }
 
   override def findUserBy(userId: UserId): IO[Option[User]] = for
-    userRow <- findBy(userId)
+    userRow <- sql"""select
+                    |  user_id, email, username, password, bio, image
+                    |from users
+                    |where user_id = $userId""".stripMargin
+      .query[UserRow]
+      .option
+      .transact(transactor)
+    userWithPassword <- userRow.traverse(
+      _.toUserWithPassword[CipherText, UserWithHashPassword].validated,
+    )
+    user = userWithPassword.map(_.user)
+  yield user
+
+  override def findUserBy(username: Username): IO[Option[User]] = for
+    userRow <- sql"""select
+                    |  user_id, email, username, password, bio, image
+                    |from users
+                    |where username = $username""".stripMargin
+      .query[UserRow]
+      .option
+      .transact(transactor)
     userWithPassword <- userRow.traverse(
       _.toUserWithPassword[CipherText, UserWithHashPassword].validated,
     )
@@ -80,15 +101,6 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
       .option
       .transact(transactor)
 
-  private def findBy(userId: UserId): IO[Option[UserRow]] =
-    sql"""select
-         |  user_id, email, username, password, bio, image
-         |from users
-         |where user_id = $userId""".stripMargin
-      .query[UserRow]
-      .option
-      .transact(transactor)
-
   private def isUniqueViolationError(error: PSQLException) =
     val sqlState = error.getServerErrorMessage.nn.getSQLState
     PSQLState.UNIQUE_VIOLATION.getState == sqlState
@@ -99,8 +111,6 @@ object PostgresUsersRepository:
   given passwordDoobieMapper: Meta[Password[CipherText]] =
     Meta[Secret[String]]
       .tiemap(secret => Password.from[CipherText](secret.value).eitherMessage)(_.value)
-
-  given userIdDoobieMapper: Meta[UserId] = Meta[Int].tiemap(UserId.from(_).eitherMessage)(identity)
 
   given usernameDoobieMapper: Meta[Username] =
     Meta[String].tiemap(Username.from(_).eitherMessage)(identity)

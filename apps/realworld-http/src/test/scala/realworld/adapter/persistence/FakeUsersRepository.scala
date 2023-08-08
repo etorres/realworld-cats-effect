@@ -2,6 +2,7 @@ package es.eriktorr
 package realworld.adapter.persistence
 
 import realworld.adapter.persistence.FakeUsersRepository.UsersRepositoryState
+import realworld.domain.model.User.Username
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
 import realworld.domain.model.{Email, User, UserId}
 import realworld.domain.service.UsersRepository
@@ -25,6 +26,14 @@ final class FakeUsersRepository(stateRef: Ref[IO, UsersRepositoryState]) extends
 
   override def findUserBy(userId: UserId): IO[Option[User]] =
     stateRef.get.map(_.users.get(userId).map(_.user))
+
+  override def findUserBy(username: Username): IO[Option[User]] = stateRef.get.map(
+    _.users
+      .find { case (_, userWithPassword) =>
+        userWithPassword.user.username == username
+      }
+      .map { case (_, userWithPassword) => userWithPassword.user },
+  )
 
   override def findUserIdBy(email: Email): IO[Option[UserId]] = stateRef.get.map(
     _.users

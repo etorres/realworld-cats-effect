@@ -63,7 +63,7 @@ object RealWorldHttpAppSuiteRunner:
     metricsService = FakeMetricsService()
     traceService = FakeTraceService()
     usersRepository = FakeUsersRepository(usersRepositoryStateRef)
-    usersService = UsersService(authService, cipherService, usersRepository)
+    usersService = UsersService(authService, cipherService, ???, usersRepository)
     httpApp =
       given SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]
       RealWorldHttpApp(

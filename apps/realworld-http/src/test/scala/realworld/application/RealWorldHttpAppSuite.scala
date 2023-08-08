@@ -96,24 +96,11 @@ object RealWorldHttpAppSuite:
       expectedResponse: (B, Status),
   )
 
-  final private case class UserKey(email: Email, userId: UserId, username: Username)
-
   final private case class UserData(
       password: Password[PlainText],
       userId: UserId,
       userWithPassword: UserWithHashPassword,
   )
-
-  private def uniqueUserKeys(size: Int) = for
-    emails <- nDistinct(size, emailGen)
-    userIds <- nDistinct(size, userIdGen)
-    usernames <- nDistinct(size, usernameGen)
-    userKeys = emails
-      .lazyZip(userIds)
-      .lazyZip(usernames)
-      .toList
-      .map { case (x, y, z) => UserKey(x, y, z) }
-  yield userKeys
 
   private val successfulGetCurrentUserGen = for
     userKeys <- uniqueUserKeys(7)

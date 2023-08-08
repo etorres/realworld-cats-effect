@@ -1,6 +1,7 @@
 package es.eriktorr
 package realworld.domain.service
 
+import realworld.domain.model.User.Username
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
 import realworld.domain.model.{Email, User, UserId, UserWithPassword}
 import realworld.shared.data.error.HandledError
@@ -13,6 +14,8 @@ trait UsersRepository:
   def findUserIdBy(email: Email): IO[Option[UserId]]
 
   def findUserBy(userId: UserId): IO[Option[User]]
+
+  def findUserBy(username: Username): IO[Option[User]]
 
   def findUserWithPasswordBy(email: Email): IO[Option[UserWithHashPassword]]
 

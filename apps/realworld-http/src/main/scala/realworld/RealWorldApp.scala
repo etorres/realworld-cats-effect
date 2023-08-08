@@ -1,7 +1,7 @@
 package es.eriktorr
 package realworld
 
-import realworld.adapter.persistence.PostgresUsersRepository
+import realworld.adapter.persistence.{PostgresFollowersRepository, PostgresUsersRepository}
 import realworld.application.{HttpServer, RealWorldConfig, RealWorldHttpApp, RealWorldParams}
 import realworld.domain.service.{AuthService, CipherService, UsersService}
 import realworld.shared.ConsoleLogger
@@ -32,8 +32,9 @@ object RealWorldApp extends CommandIOApp(name = "realworld-http", header = "Real
       transactor <- JdbcTransactor(config.jdbcConfig).resource
       authService = AuthService.impl(config.securityConfig)
       cipherService = CipherService.impl
+      followersRepository = PostgresFollowersRepository(transactor)
       usersRepository = PostgresUsersRepository(transactor)
-      usersService = UsersService(authService, cipherService, usersRepository)
+      usersService = UsersService(authService, cipherService, followersRepository, usersRepository)
       serviceName = ServiceName("RealWorld")
       healthService <- HealthService.resourceWith(config.healthConfig, serviceName)
       metricsService <- MetricsService.resourceWith("http4s_server")

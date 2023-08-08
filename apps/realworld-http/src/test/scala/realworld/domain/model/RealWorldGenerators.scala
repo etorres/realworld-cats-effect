@@ -5,6 +5,7 @@ import realworld.domain.model.Password.PlainText
 import realworld.domain.model.User.{Token, Username}
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
 import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
+import realworld.shared.spec.CollectionGenerators.nDistinct
 import realworld.shared.spec.StringGenerators.{
   alphaNumericStringBetween,
   alphaNumericStringShorterThan,
@@ -55,3 +56,16 @@ object RealWorldGenerators:
     password <- passwordGen
     hash = Password.cipher(password).orFail
   yield UserWithHashPassword(user, hash)
+
+  final case class UserKey(email: Email, userId: UserId, username: Username)
+
+  def uniqueUserKeys(size: Int): Gen[List[UserKey]] = for
+    emails <- nDistinct(size, emailGen)
+    userIds <- nDistinct(size, userIdGen)
+    usernames <- nDistinct(size, usernameGen)
+    userKeys = emails
+      .lazyZip(userIds)
+      .lazyZip(usernames)
+      .toList
+      .map { case (x, y, z) => UserKey(x, y, z) }
+  yield userKeys

@@ -2,6 +2,7 @@ package es.eriktorr
 package realworld.domain.service
 
 import realworld.domain.model.*
+import realworld.domain.model.User.Username
 import realworld.domain.model.UserWithPassword.UserWithPlaintextPassword
 import realworld.domain.service.UsersService.{AccessForbidden, UserNotFound}
 import realworld.shared.data.error.HandledError
@@ -11,6 +12,7 @@ import cats.effect.IO
 final class UsersService(
     authService: AuthService,
     cipherService: CipherService,
+    followersRepository: FollowersRepository,
     usersRepository: UsersRepository,
 ):
   def loginUserIdentifiedBy(credentials: Credentials): IO[User] = for
@@ -26,8 +28,11 @@ final class UsersService(
       )
   yield user
 
-  def profileFor(userId: UserId): IO[Profile] =
-    IO.raiseError(IllegalArgumentException("Not implemented")) // TODO
+  def profileFor(username: Username, userId: UserId): IO[Profile] = for
+    maybeUser <- usersRepository.findUserBy(username)
+    user <- IO.fromOption(maybeUser)(UserNotFound("username", username))
+    following <- followersRepository.isFollowing(???, userId)
+  yield Profile(user.username, user.bio, user.image, following)
 
   def register(newUser: UserWithPlaintextPassword): IO[User] = for
     hash <- cipherService.cipher(newUser.password)

@@ -20,7 +20,7 @@ final class PostgresTestTransactor(jdbcTestConfig: JdbcTestConfig)(using logger:
              |where table_schema='public'
              | and table_name not like 'flyway_%'""".stripMargin.query[String].to[List]
       _ <- tableNames
-        .map(tableName => Fragment.const(s"truncate table $tableName"))
+        .map(tableName => Fragment.const(s"truncate table $tableName cascade"))
         .traverse_(_.update.run)
     yield ()).transact(transactor))
   yield transactor

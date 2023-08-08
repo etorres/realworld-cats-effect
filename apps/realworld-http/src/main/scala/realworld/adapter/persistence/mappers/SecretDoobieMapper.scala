@@ -1,5 +1,5 @@
 package es.eriktorr
-package realworld.adapter.persistence
+package realworld.adapter.persistence.mappers
 
 import realworld.shared.Secret
 

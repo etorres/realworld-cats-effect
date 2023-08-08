@@ -1,7 +1,7 @@
 package es.eriktorr
 package realworld.adapter.persistence
 
-import realworld.adapter.persistence.SecretDoobieMapper.secretDoobieMapper
+import es.eriktorr.realworld.adapter.persistence.mappers.SecretDoobieMapper.secretDoobieMapper
 import realworld.adapter.persistence.row.UserRow
 
 import cats.effect.IO
