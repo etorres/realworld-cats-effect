@@ -20,7 +20,12 @@ final class FakeFollowersRepository(stateRef: Ref[IO, FollowersRepositoryState])
   override def isFollowing(followed: UserId, follower: UserId): IO[Boolean] =
     stateRef.get.map(_.followers.get(followed).exists(_.contains(follower)))
 
-  override def unfollow(followed: UserId, follower: UserId): IO[Unit] = ???
+  override def unfollow(followed: UserId, follower: UserId): IO[Unit] = stateRef.update:
+    currentState =>
+      currentState.copy(currentState.followers.get(followed) match
+        case Some(value) => currentState.followers + (followed -> value.filterNot(_ == follower))
+        case None => currentState.followers,
+      )
 
 object FakeFollowersRepository:
   final case class FollowersRepositoryState(followers: Map[UserId, List[UserId]]):
