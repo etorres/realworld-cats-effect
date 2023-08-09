@@ -91,3 +91,14 @@ object UsersGenerators:
         yield UserData(password, key.userId, userWithPassword)
       }
   yield userData
+
+  final case class UserWithId(userId: UserId, userWithPassword: UserWithHashPassword)
+
+  def uniqueTokenLessUsersWithId(size: Int): Gen[List[UserWithId]] = for
+    userKeys <- uniqueUserKeys(size)
+    usersWithId <- userKeys.traverse: key =>
+      for
+        user <- userGen(key.email, None, key.username)
+        userWithPassword <- userWithHashPasswordGen(user)
+      yield UserWithId(key.userId, userWithPassword)
+  yield usersWithId

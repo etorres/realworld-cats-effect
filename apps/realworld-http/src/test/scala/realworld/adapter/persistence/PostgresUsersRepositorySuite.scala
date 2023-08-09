@@ -7,13 +7,11 @@ import realworld.domain.model.UserWithPassword.UserWithHashPassword
 import realworld.domain.model.UsersGenerators.*
 import realworld.domain.model.{Email, User, UserId}
 import realworld.domain.service.UsersRepository.AlreadyInUseError
-import realworld.shared.spec.CollectionGenerators.nDistinct
 import realworld.shared.spec.PostgresSuite
 
-import cats.implicits.{toFoldableOps, toTraverseOps}
+import cats.implicits.toFoldableOps
 import monocle.syntax.all.{focus, refocus}
 import org.scalacheck.Gen
-import org.scalacheck.cats.implicits.genInstances
 import org.scalacheck.effect.PropF.forAllF
 
 final class PostgresUsersRepositorySuite extends PostgresSuite:
@@ -136,22 +134,12 @@ object PostgresUsersRepositorySuite:
   )
 
   private val findUserTestCaseGen = for
-    emails <- nDistinct(7, emailGen)
-    selectedEmail :: otherEmails = emails: @unchecked
-    userIds <- nDistinct(7, userIdGen)
-    selectedUserId :: otherUserIds = userIds: @unchecked
-    selectedUserWithPassword <- userWithHashPasswordGen(userGen =
-      userGen(emailGen = selectedEmail, tokenGen = None),
-    )
-    otherUsersWithPassword <- otherEmails.traverse(email =>
-      userWithHashPasswordGen(userGen = userGen(emailGen = email, tokenGen = None)),
-    )
-    expected = Some(selectedUserWithPassword.user)
-    rows = ((selectedUserWithPassword -> selectedUserId) :: otherUsersWithPassword
-      .zip(otherUserIds))
-      .map:
-        case (userWithPassword, userId) => userWithPassword.toUserRow(userId)
-  yield FindUserTestCase(expected, rows, selectedUserId)
+    case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
+    allUsers = selectedUser :: otherUsers
+    expected = Some(selectedUser.userWithPassword.user)
+    rows = allUsers.map:
+      case UserWithId(userId, userWithPassword) => userWithPassword.toUserRow(userId)
+  yield FindUserTestCase(expected, rows, selectedUser.userId)
 
   final private case class FindUserIdTestCase(
       email: Email,
@@ -160,22 +148,12 @@ object PostgresUsersRepositorySuite:
   )
 
   private val findUserIdTestCaseGen = for
-    emails <- nDistinct(7, emailGen)
-    selectedEmail :: otherEmails = emails: @unchecked
-    userIds <- nDistinct(7, userIdGen)
-    selectedUserId :: otherUserIds = userIds: @unchecked
-    selectedUserWithPassword <- userWithHashPasswordGen(userGen =
-      userGen(emailGen = selectedEmail, tokenGen = None),
-    )
-    otherUsersWithPassword <- otherEmails.traverse(email =>
-      userWithHashPasswordGen(userGen = userGen(emailGen = email, tokenGen = None)),
-    )
-    expected = Some(UserId.unsafeFrom(selectedUserId))
-    rows = ((selectedUserWithPassword -> selectedUserId) :: otherUsersWithPassword
-      .zip(otherUserIds))
-      .map:
-        case (userWithPassword, userId) => userWithPassword.toUserRow(userId)
-  yield FindUserIdTestCase(selectedEmail, expected, rows)
+    case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
+    allUsers = selectedUser :: otherUsers
+    expected = Some(selectedUser.userId)
+    rows = allUsers.map:
+      case UserWithId(userId, userWithPassword) => userWithPassword.toUserRow(userId)
+  yield FindUserIdTestCase(selectedUser.userWithPassword.user.email, expected, rows)
 
   final private case class FindUserWithPasswordTestCase(
       email: Email,
@@ -184,21 +162,12 @@ object PostgresUsersRepositorySuite:
   )
 
   private val findUserWithPasswordTestCaseGen = for
-    emails <- nDistinct(7, emailGen)
-    userIds <- nDistinct(7, userIdGen)
-    selectedEmail :: otherEmails = emails: @unchecked
-    selectedUserWithPassword <- userWithHashPasswordGen(userGen =
-      userGen(emailGen = selectedEmail, tokenGen = None),
-    )
-    otherUsersWithPassword <- otherEmails.traverse(email =>
-      userWithHashPasswordGen(userGen = userGen(emailGen = email, tokenGen = None)),
-    )
-    expected = Some(selectedUserWithPassword)
-    rows = (selectedUserWithPassword :: otherUsersWithPassword)
-      .zip(userIds)
-      .map:
-        case (userWithPassword, userId) => userWithPassword.toUserRow(userId)
-  yield FindUserWithPasswordTestCase(selectedEmail, expected, rows)
+    case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
+    allUsers = selectedUser :: otherUsers
+    expected = Some(selectedUser.userWithPassword)
+    rows = allUsers.map:
+      case UserWithId(userId, userWithPassword) => userWithPassword.toUserRow(userId)
+  yield FindUserWithPasswordTestCase(selectedUser.userWithPassword.user.email, expected, rows)
 
   final private case class UpdateUserTestCase(
       expected: UserWithHashPassword,
@@ -208,24 +177,15 @@ object PostgresUsersRepositorySuite:
   )
 
   private val updateUserTestCaseGen = for
-    emails <- nDistinct(7, emailGen)
-    selectedEmail :: otherEmails = emails: @unchecked
-    userIds <- nDistinct(7, userIdGen)
-    selectedUserId :: otherUserIds = userIds: @unchecked
-    selectedUserWithPassword <- userWithHashPasswordGen(userGen =
-      userGen(emailGen = selectedEmail, tokenGen = None),
-    )
-    otherUsersWithPassword <- otherEmails.traverse(email =>
-      userWithHashPasswordGen(userGen = userGen(emailGen = email, tokenGen = None)),
-    )
-    updated <- userWithHashPasswordGen(userGen(emailGen = selectedEmail, tokenGen = None))
-      .retryUntil(_ != selectedUserWithPassword, 100)
+    case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
+    allUsers = selectedUser :: otherUsers
+    updated <- userWithHashPasswordGen(
+      userGen(emailGen = selectedUser.userWithPassword.user.email, tokenGen = None),
+    ).retryUntil(_ != selectedUser.userWithPassword, 100)
     expected = updated
-    rows = ((selectedUserWithPassword -> selectedUserId) :: otherUsersWithPassword
-      .zip(otherUserIds))
-      .map:
-        case (userWithPassword, userId) => userWithPassword.toUserRow(userId)
-  yield UpdateUserTestCase(expected, rows, updated, selectedUserId)
+    rows = allUsers.map:
+      case UserWithId(userId, userWithPassword) => userWithPassword.toUserRow(userId)
+  yield UpdateUserTestCase(expected, rows, updated, selectedUser.userId)
 
   extension (userWithPassword: UserWithHashPassword)
     def toUserRow(userId: Int): UserRow =
