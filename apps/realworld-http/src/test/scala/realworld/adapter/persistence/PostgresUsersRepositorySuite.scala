@@ -74,11 +74,18 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
         val usersRepository = PostgresUsersRepository(transactor)
         (for
           _ <- testCase.rows.traverse_(testRepository.add)
-          obtained <- usersRepository.findUserBy(testCase.userId)
+          obtained <- usersRepository.findUserBy(testCase.query)
         yield obtained).assertEquals(testCase.expected)
 
   test("should find a user with her Id by username"):
-    fail("not implemented")
+    forAllF(findUserByUsernameTestCaseGen): testCase =>
+      testTransactor.resource.use: transactor =>
+        val testRepository = PostgresUsersTestRepository(transactor)
+        val usersRepository = PostgresUsersRepository(transactor)
+        (for
+          _ <- testCase.rows.traverse_(testRepository.add)
+          obtained <- usersRepository.findUserWithIdBy(testCase.query)
+        yield obtained).assertEquals(testCase.expected)
 
   test("should find a user Id by email"):
     forAllF(findUserIdTestCaseGen): testCase =>
@@ -87,7 +94,7 @@ final class PostgresUsersRepositorySuite extends PostgresSuite:
         val usersRepository = PostgresUsersRepository(transactor)
         (for
           _ <- testCase.rows.traverse_(testRepository.add)
-          obtained <- usersRepository.findUserIdBy(testCase.email)
+          obtained <- usersRepository.findUserIdBy(testCase.query)
         yield obtained).assertEquals(testCase.expected)
 
   test("should find a user with her password by email"):
@@ -118,6 +125,12 @@ object PostgresUsersRepositorySuite:
       row: UserRow,
   )
 
+  final private case class FindTestCase[A, B](
+      expected: Option[B],
+      rows: List[UserRow],
+      query: A,
+  )
+
   private val createUserTestCaseGen = for
     userId <- userIdGen
     userWithPassword <- userWithHashPasswordGen(userGen =
@@ -127,25 +140,21 @@ object PostgresUsersRepositorySuite:
     row = userWithPassword.toUserRow(userId)
   yield CreateUserTestCase(expected, userWithPassword, row)
 
-  final private case class FindUserTestCase(
-      expected: Option[User],
-      rows: List[UserRow],
-      userId: UserId,
-  )
-
   private val findUserTestCaseGen = for
     case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
     allUsers = selectedUser :: otherUsers
     expected = Some(selectedUser.userWithPassword.user)
     rows = allUsers.map:
       case UserWithId(userId, userWithPassword) => userWithPassword.toUserRow(userId)
-  yield FindUserTestCase(expected, rows, selectedUser.userId)
+  yield FindTestCase(expected, rows, selectedUser.userId)
 
-  final private case class FindUserIdTestCase(
-      email: Email,
-      expected: Option[UserId],
-      rows: List[UserRow],
-  )
+  private val findUserByUsernameTestCaseGen = for
+    case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
+    allUsers = selectedUser :: otherUsers
+    expected = Some(selectedUser.userWithPassword.user -> selectedUser.userId)
+    rows = allUsers.map:
+      case UserWithId(userId, userWithPassword) => userWithPassword.toUserRow(userId)
+  yield FindTestCase(expected, rows, selectedUser.userWithPassword.user.username)
 
   private val findUserIdTestCaseGen = for
     case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
@@ -153,7 +162,7 @@ object PostgresUsersRepositorySuite:
     expected = Some(selectedUser.userId)
     rows = allUsers.map:
       case UserWithId(userId, userWithPassword) => userWithPassword.toUserRow(userId)
-  yield FindUserIdTestCase(selectedUser.userWithPassword.user.email, expected, rows)
+  yield FindTestCase(expected, rows, selectedUser.userWithPassword.user.email)
 
   final private case class FindUserWithPasswordTestCase(
       email: Email,
