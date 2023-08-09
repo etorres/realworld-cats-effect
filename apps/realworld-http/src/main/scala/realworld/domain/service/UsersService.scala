@@ -45,6 +45,12 @@ final class UsersService(
     user <- usersRepository.create(newUser.withHash(hash))
   yield user
 
+  def unfollow(username: Username, followerId: UserId): IO[Profile] = for
+    maybeUserWithId <- usersRepository.findUserWithIdBy(username)
+    (followedUser, followedId) <- IO.fromOption(maybeUserWithId)(UserNotFound("username", username))
+    _ <- followersRepository.unfollow(followedId, followerId)
+  yield Profile(followedUser.username, followedUser.bio, followedUser.image, false)
+
   def update(updatedUser: UserWithPlaintextPassword, userId: UserId): IO[User] = for
     hash <- cipherService.cipher(updatedUser.password)
     user <- usersRepository.update(updatedUser.withHash(hash), userId)

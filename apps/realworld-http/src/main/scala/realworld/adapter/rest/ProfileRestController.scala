@@ -2,7 +2,11 @@ package es.eriktorr
 package realworld.adapter.rest
 
 import realworld.adapter.rest.params.UsernameVar
-import realworld.adapter.rest.response.{FollowUserResponse, GetProfileResponse}
+import realworld.adapter.rest.response.{
+  FollowUserResponse,
+  GetProfileResponse,
+  UnfollowUserResponse,
+}
 import realworld.domain.model.UserId
 import realworld.domain.service.{AuthService, UsersService}
 
@@ -21,6 +25,12 @@ final class ProfileRestController(authService: AuthService, usersService: UsersS
         (for
           profile <- usersService.profileFor(username, userId)
           response <- Ok(GetProfileResponse(profile))
+        yield response).handleErrorWith(contextFrom(request.req))
+
+      case request @ DELETE -> Root / "profiles" / UsernameVar(username) / "follow" as userId =>
+        (for
+          profile <- usersService.unfollow(username, userId)
+          response <- Ok(UnfollowUserResponse(profile))
         yield response).handleErrorWith(contextFrom(request.req))
 
       case request @ POST -> Root / "profiles" / UsernameVar(username) / "follow" as userId =>

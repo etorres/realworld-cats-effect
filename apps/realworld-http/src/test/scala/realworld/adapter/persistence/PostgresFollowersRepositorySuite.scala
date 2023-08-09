@@ -37,6 +37,19 @@ final class PostgresFollowersRepositorySuite extends PostgresSuite:
           obtained <- followersRepository.isFollowing(testCase.followed, testCase.follower)
         yield obtained).assertEquals(true)
 
+  test("should unfollow a user"):
+    forAllF(testCaseGen): testCase =>
+      testTransactor.resource.use: transactor =>
+        val usersTestRepository = PostgresUsersTestRepository(transactor)
+        val followersTestRepository = PostgresFollowersTestRepository(transactor)
+        val followersRepository = PostgresFollowersRepository(transactor)
+        (for
+          _ <- testCase.userRows.traverse_(usersTestRepository.add)
+          _ <- testCase.followerRows.traverse_(followersTestRepository.add)
+          _ <- followersRepository.unfollow(testCase.followed, testCase.follower)
+          obtained <- followersRepository.isFollowing(testCase.followed, testCase.follower)
+        yield obtained).assertEquals(false)
+
 object PostgresFollowersRepositorySuite:
   final private case class TestCase(
       expected: Boolean,

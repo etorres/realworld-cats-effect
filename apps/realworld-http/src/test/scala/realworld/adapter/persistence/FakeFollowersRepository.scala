@@ -20,6 +20,8 @@ final class FakeFollowersRepository(stateRef: Ref[IO, FollowersRepositoryState])
   override def isFollowing(followed: UserId, follower: UserId): IO[Boolean] =
     stateRef.get.map(_.followers.get(followed).exists(_.contains(follower)))
 
+  override def unfollow(followed: UserId, follower: UserId): IO[Unit] = ???
+
 object FakeFollowersRepository:
   final case class FollowersRepositoryState(followers: Map[UserId, List[UserId]]):
     def setFollowers(newFollowers: Map[UserId, List[UserId]]): FollowersRepositoryState = copy(

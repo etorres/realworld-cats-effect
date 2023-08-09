@@ -49,6 +49,9 @@ final class ProfileRestControllerSuite extends HttpAppSuite:
         assertEquals(finalState, testCase.expectedState)
       }
 
+  test("should unfollow a user"):
+    fail("not implemented")
+
 object ProfileRestControllerSuite:
   private val successfulGetProfileGen = for
     case followed :: follower :: otherUsers <- uniqueUserData(7)

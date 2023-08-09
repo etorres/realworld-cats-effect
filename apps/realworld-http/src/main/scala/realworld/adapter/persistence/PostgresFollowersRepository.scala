@@ -33,3 +33,10 @@ final class PostgresFollowersRepository(transactor: HikariTransactor[IO])
       .transact(transactor)
     following = maybeFollowing.nonEmpty
   yield following
+
+  override def unfollow(followed: UserId, follower: UserId): IO[Unit] =
+    sql"""delete from followers
+         |where user_id = $followed
+         |  and follower_id = $follower""".stripMargin.update.run
+      .transact(transactor)
+      .void
