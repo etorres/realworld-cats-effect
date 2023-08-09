@@ -2,21 +2,17 @@ package es.eriktorr
 package realworld.application
 
 import realworld.adapter.rest.response.GetProfileResponse
-import realworld.application.HttpAppSuite.{TestCase, UserData}
+import realworld.application.HttpAppSuite.*
 import realworld.application.HttpAppSuiteRunner.{runWith, HttpAppState}
 import realworld.application.ProfileRestControllerSuite.successfulGetProfileGen
 import realworld.domain.model.Profile
-import realworld.domain.model.RealWorldGenerators.*
-import realworld.shared.spec.CollectionGenerators.nDistinct
+import realworld.domain.model.UsersGenerators.*
 
-import cats.implicits.toTraverseOps
 import io.circe.Decoder
-import org.http4s.Credentials.Token
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.headers.Authorization
-import org.http4s.{AuthScheme, Method, Request, Status, Uri}
+import org.http4s.{Method, Request, Status, Uri}
 import org.scalacheck.Gen
-import org.scalacheck.cats.implicits.genInstances
 import org.scalacheck.effect.PropF.forAllF
 
 final class ProfileRestControllerSuite extends HttpAppSuite:
@@ -37,48 +33,19 @@ final class ProfileRestControllerSuite extends HttpAppSuite:
 
 object ProfileRestControllerSuite:
   private val successfulGetProfileGen = for
-    userKeys <- uniqueUserKeys(7)
-    tokens <- nDistinct(7, tokenGen)
-    case followed :: follower :: otherUsers <- userKeys
-      .zip(tokens)
-      .traverse { case (key, token) =>
-        for
-          password <- passwordGen
-          user <- userGen(key.email, Some(token), key.username)
-          userWithPassword <- userWithHashPasswordGen(user, password)
-        yield UserData(password, key.userId, userWithPassword)
-      }
+    case followed :: follower :: otherUsers <- uniqueUserData(7)
     allUsers = followed :: follower :: otherUsers
     following <- Gen.oneOf(true, false)
     followers = Map(
       followed.userId -> ((if following then List(follower.userId)
                            else List.empty) ++ otherUsers.map(_.userId)),
     )
-    authorization = Authorization(
-      Token(
-        AuthScheme.Bearer,
-        follower.userWithPassword.user.token.map(_.value.value).getOrElse(""),
-      ),
-    )
+    authorization = authorizationFor(follower.userWithPassword.user)
     initialState = HttpAppState.empty
       .setFollowers(followers)
-      .setPasswords(allUsers.map { case UserData(password, _, userWithPassword) =>
-        password -> userWithPassword.password
-      }.toMap)
-      .setTokens(
-        allUsers
-          .map { case UserData(_, _, userWithPassword) =>
-            userWithPassword.user.email -> userWithPassword.user.token
-          }
-          .collect { case (email, Some(token)) => email -> token }
-          .toMap,
-      )
-      .setUsersWithPassword(
-        List.empty,
-        allUsers.map { case UserData(_, userId, userWithPassword) =>
-          userId -> userWithPassword
-        }.toMap,
-      )
+      .setPasswords(passwordsFrom(allUsers))
+      .setTokens(tokensFrom(allUsers))
+      .setUsersWithPassword(List.empty, usersWithPasswordFrom(allUsers))
     expectedState = initialState.copy()
     request = followed.userWithPassword.user.username
     expectedResponse = (

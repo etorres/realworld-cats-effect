@@ -3,9 +3,9 @@ package realworld.adapter.persistence
 
 import realworld.adapter.persistence.PostgresFollowersRepositorySuite.testCaseGen
 import realworld.adapter.persistence.row.{FollowerRow, UserRow}
-import realworld.domain.model.RealWorldGenerators.{uniqueUserKeys, userGen, userWithHashPasswordGen}
 import realworld.domain.model.UserId
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
+import realworld.domain.model.UsersGenerators.{uniqueUserKeys, userGen, userWithHashPasswordGen}
 import realworld.shared.spec.PostgresSuite
 
 import cats.implicits.{toFoldableOps, toTraverseOps}

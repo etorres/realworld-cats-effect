@@ -8,7 +8,7 @@ import realworld.adapter.rest.response.{
   RegisterNewUserResponse,
   UpdateUserResponse,
 }
-import realworld.application.HttpAppSuite.{TestCase, UserData}
+import realworld.application.HttpAppSuite.*
 import realworld.application.HttpAppSuiteRunner.{runWith, HttpAppState}
 import realworld.application.UsersRestControllerSuite.{
   successfulGetCurrentUserGen,
@@ -17,20 +17,16 @@ import realworld.application.UsersRestControllerSuite.{
   successfulUserRegistrationGen,
 }
 import realworld.domain.model.Password.CipherText
-import realworld.domain.model.RealWorldGenerators.*
 import realworld.domain.model.User.Username
+import realworld.domain.model.UsersGenerators.*
 import realworld.domain.model.{Email, User}
-import realworld.shared.spec.CollectionGenerators.nDistinct
 
-import cats.implicits.toTraverseOps
 import io.circe.Decoder
-import org.http4s.Credentials.Token
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
 import org.http4s.headers.Authorization
 import org.http4s.implicits.uri
-import org.http4s.{AuthScheme, Method, Request, Status}
+import org.http4s.{Method, Request, Status}
 import org.scalacheck.Gen
-import org.scalacheck.cats.implicits.genInstances
 import org.scalacheck.effect.PropF.forAllF
 
 final class UsersRestControllerSuite extends HttpAppSuite:
@@ -88,75 +84,24 @@ final class UsersRestControllerSuite extends HttpAppSuite:
 
 object UsersRestControllerSuite:
   private val successfulGetCurrentUserGen = for
-    userKeys <- uniqueUserKeys(7)
-    tokens <- nDistinct(7, tokenGen)
-    case selectedUser :: otherUsers <- userKeys
-      .zip(tokens)
-      .traverse { case (key, token) =>
-        for
-          password <- passwordGen
-          user <- userGen(key.email, Some(token), key.username)
-          userWithPassword <- userWithHashPasswordGen(user, password)
-        yield UserData(password, key.userId, userWithPassword)
-      }
+    case selectedUser :: otherUsers <- uniqueUserData(7)
     allUsers = selectedUser :: otherUsers
-    authorization = Authorization(
-      Token(
-        AuthScheme.Bearer,
-        selectedUser.userWithPassword.user.token.map(_.value.value).getOrElse(""),
-      ),
-    )
+    authorization = authorizationFor(selectedUser.userWithPassword.user)
     initialState = HttpAppState.empty
-      .setTokens(
-        allUsers
-          .map { case UserData(_, _, userWithPassword) =>
-            userWithPassword.user.email -> userWithPassword.user.token
-          }
-          .collect { case (email, Some(token)) => email -> token }
-          .toMap,
-      )
-      .setUsersWithPassword(
-        List.empty,
-        allUsers.map { case UserData(_, userId, userWithPassword) =>
-          userId -> userWithPassword
-        }.toMap,
-      )
+      .setTokens(tokensFrom(allUsers))
+      .setUsersWithPassword(List.empty, usersWithPasswordFrom(allUsers))
     expectedState = initialState.copy()
     request = Nil
     expectedResponse = (GetCurrentUserResponse(selectedUser.userWithPassword.user), Status.Ok)
   yield TestCase(Some(authorization), initialState, expectedState, request, expectedResponse)
 
   private val successfulUserLoginGen = for
-    userKeys <- uniqueUserKeys(7)
-    tokens <- nDistinct(7, tokenGen)
-    case selectedUser :: otherUsers <- userKeys
-      .zip(tokens)
-      .traverse { case (key, token) =>
-        for
-          password <- passwordGen
-          user <- userGen(key.email, Some(token), key.username)
-          userWithPassword <- userWithHashPasswordGen(user, password)
-        yield UserData(password, key.userId, userWithPassword)
-      }
+    case selectedUser :: otherUsers <- uniqueUserData(7)
     allUsers = selectedUser :: otherUsers
     initialState = HttpAppState.empty
-      .setPasswords(allUsers.map { case UserData(password, _, userWithPassword) =>
-        password -> userWithPassword.password
-      }.toMap)
-      .setTokens(
-        allUsers
-          .map { case UserData(_, _, userWithPassword) =>
-            userWithPassword.user.email -> userWithPassword.user.token
-          }
-          .collect { case (email, Some(token)) => email -> token }
-          .toMap,
-      )
-      .setUsersWithPassword(
-        List.empty,
-        allUsers.map { case UserData(_, userId, userWithPassword) =>
-          userId -> userWithPassword
-        }.toMap,
-      )
+      .setPasswords(passwordsFrom(allUsers))
+      .setTokens(tokensFrom(allUsers))
+      .setUsersWithPassword(List.empty, usersWithPasswordFrom(allUsers))
     expectedState = initialState.copy()
     request = LoginUserRequest(
       LoginUserRequest.User(
@@ -173,9 +118,7 @@ object UsersRestControllerSuite:
     userId <- userIdGen
     userWithPassword <- userWithHashPasswordGen(userGen = user, passwordGen = password)
     initialState = HttpAppState.empty
-      .setPasswords(
-        Map(password -> userWithPassword.password),
-      )
+      .setPasswords(Map(password -> userWithPassword.password))
       .setUsersWithPassword(List(userId), Map.empty)
     expectedState = initialState.setUsersWithPassword(List.empty, Map(userId -> userWithPassword))
     request = RegisterNewUserRequest(
@@ -185,45 +128,16 @@ object UsersRestControllerSuite:
   yield TestCase(None, initialState, expectedState, request, expectedResponse)
 
   private val successfulUpdateAnExistingUser = for
-    userKeys <- uniqueUserKeys(7)
-    tokens <- nDistinct(7, tokenGen)
-    case selectedUser :: otherUsers <- userKeys
-      .zip(tokens)
-      .traverse { case (key, token) =>
-        for
-          password <- passwordGen
-          user <- userGen(key.email, Some(token), key.username)
-          userWithPassword <- userWithHashPasswordGen(user, password)
-        yield UserData(password, key.userId, userWithPassword)
-      }
+    case selectedUser :: otherUsers <- uniqueUserData(7)
     allUsers = selectedUser :: otherUsers
     updatedPassword <- passwordGen.retryUntil(_ != selectedUser.password, 100)
     updatedUser <- userWithHashPasswordGen(userGen(tokenGen = None), passwordGen = updatedPassword)
       .retryUntil(_ != selectedUser.userWithPassword, 100)
-    authorization = Authorization(
-      Token(
-        AuthScheme.Bearer,
-        selectedUser.userWithPassword.user.token.map(_.value.value).getOrElse(""),
-      ),
-    )
+    authorization = authorizationFor(selectedUser.userWithPassword.user)
     initialState = HttpAppState.empty
-      .setPasswords(allUsers.map { case UserData(password, _, userWithPassword) =>
-        password -> userWithPassword.password
-      }.toMap + (updatedPassword -> updatedUser.password))
-      .setTokens(
-        allUsers
-          .map { case UserData(_, _, userWithPassword) =>
-            userWithPassword.user.email -> userWithPassword.user.token
-          }
-          .collect { case (email, Some(token)) => email -> token }
-          .toMap,
-      )
-      .setUsersWithPassword(
-        List.empty,
-        allUsers.map { case UserData(_, userId, userWithPassword) =>
-          userId -> userWithPassword
-        }.toMap,
-      )
+      .setPasswords(passwordsFrom(allUsers) + (updatedPassword -> updatedUser.password))
+      .setTokens(tokensFrom(allUsers))
+      .setUsersWithPassword(List.empty, usersWithPasswordFrom(allUsers))
     expectedState = initialState.setUsersWithPassword(
       List.empty,
       allUsers.map { case UserData(_, userId, userWithPassword) =>

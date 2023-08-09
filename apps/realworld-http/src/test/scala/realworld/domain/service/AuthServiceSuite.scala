@@ -1,7 +1,7 @@
 package es.eriktorr
 package realworld.domain.service
 
-import realworld.domain.model.RealWorldGenerators.emailGen
+import realworld.domain.model.UsersGenerators.emailGen
 import realworld.shared.Secret
 import realworld.shared.application.SecurityConfig
 import realworld.shared.application.SecurityConfig.{JwtIssuer, JwtSecret}

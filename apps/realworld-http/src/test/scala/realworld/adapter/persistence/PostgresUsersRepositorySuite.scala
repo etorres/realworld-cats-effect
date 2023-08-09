@@ -3,8 +3,8 @@ package realworld.adapter.persistence
 
 import realworld.adapter.persistence.PostgresUsersRepositorySuite.*
 import realworld.adapter.persistence.row.UserRow
-import realworld.domain.model.RealWorldGenerators.*
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
+import realworld.domain.model.UsersGenerators.*
 import realworld.domain.model.{Email, User, UserId}
 import realworld.domain.service.UsersRepository.AlreadyInUseError
 import realworld.shared.spec.CollectionGenerators.nDistinct

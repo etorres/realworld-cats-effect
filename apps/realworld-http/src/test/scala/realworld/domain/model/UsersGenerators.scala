@@ -12,11 +12,13 @@ import realworld.shared.spec.StringGenerators.{
 }
 import realworld.shared.spec.UriGenerator.uriGen
 
+import cats.implicits.toTraverseOps
 import org.scalacheck.Gen
+import org.scalacheck.cats.implicits.genInstances
 
 import java.net.URI
 
-object RealWorldGenerators:
+object UsersGenerators:
   val emailGen: Gen[Email] = for
     domain <- Gen.oneOf("example.com", "example.net", "example.org")
     username <- alphaNumericStringBetween(3, 12)
@@ -69,3 +71,23 @@ object RealWorldGenerators:
       .toList
       .map { case (x, y, z) => UserKey(x, y, z) }
   yield userKeys
+
+  final case class UserData(
+      password: Password[PlainText],
+      userId: UserId,
+      userWithPassword: UserWithHashPassword,
+  )
+
+  def uniqueUserData(size: Int): Gen[List[UserData]] = for
+    userKeys <- uniqueUserKeys(size)
+    tokens <- nDistinct(size, tokenGen)
+    userData <- userKeys
+      .zip(tokens)
+      .traverse { case (key, token) =>
+        for
+          password <- passwordGen
+          user <- userGen(key.email, Some(token), key.username)
+          userWithPassword <- userWithHashPasswordGen(user, password)
+        yield UserData(password, key.userId, userWithPassword)
+      }
+  yield userData
