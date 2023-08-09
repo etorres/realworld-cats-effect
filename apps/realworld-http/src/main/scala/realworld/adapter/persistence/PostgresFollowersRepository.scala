@@ -12,7 +12,15 @@ import doobie.implicits.*
 
 final class PostgresFollowersRepository(transactor: HikariTransactor[IO])
     extends FollowersRepository:
-  override def follow(followed: UserId, follower: UserId): IO[Unit] = ???
+  override def follow(followed: UserId, follower: UserId): IO[Unit] =
+    sql"""insert into followers (
+         |  user_id, follower_id
+         |) values (
+         |  $followed,
+         |  $follower
+         |) on conflict (user_id, follower_id) do nothing""".stripMargin.update.run
+      .transact(transactor)
+      .void
 
   override def isFollowing(followed: UserId, follower: UserId): IO[Boolean] = for
     maybeFollowing <- sql"""select

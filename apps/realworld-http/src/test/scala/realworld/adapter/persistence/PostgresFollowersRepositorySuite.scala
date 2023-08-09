@@ -25,7 +25,17 @@ final class PostgresFollowersRepositorySuite extends PostgresSuite:
         yield obtained).assertEquals(testCase.expected)
 
   test("should follow a user"):
-    fail("not implemented")
+    forAllF(testCaseGen): testCase =>
+      testTransactor.resource.use: transactor =>
+        val usersTestRepository = PostgresUsersTestRepository(transactor)
+        val followersTestRepository = PostgresFollowersTestRepository(transactor)
+        val followersRepository = PostgresFollowersRepository(transactor)
+        (for
+          _ <- testCase.userRows.traverse_(usersTestRepository.add)
+          _ <- testCase.followerRows.traverse_(followersTestRepository.add)
+          _ <- followersRepository.follow(testCase.followed, testCase.follower)
+          obtained <- followersRepository.isFollowing(testCase.followed, testCase.follower)
+        yield obtained).assertEquals(true)
 
 object PostgresFollowersRepositorySuite:
   final private case class TestCase(
