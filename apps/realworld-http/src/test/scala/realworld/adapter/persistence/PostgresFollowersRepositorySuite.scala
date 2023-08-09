@@ -4,13 +4,11 @@ package realworld.adapter.persistence
 import realworld.adapter.persistence.PostgresFollowersRepositorySuite.testCaseGen
 import realworld.adapter.persistence.row.{FollowerRow, UserRow}
 import realworld.domain.model.UserId
-import realworld.domain.model.UserWithPassword.UserWithHashPassword
-import realworld.domain.model.UsersGenerators.{uniqueUserKeys, userGen, userWithHashPasswordGen}
+import realworld.domain.model.UsersGenerators.*
 import realworld.shared.spec.PostgresSuite
 
-import cats.implicits.{toFoldableOps, toTraverseOps}
+import cats.implicits.toFoldableOps
 import org.scalacheck.Gen
-import org.scalacheck.cats.implicits.genInstances
 import org.scalacheck.effect.PropF.forAllF
 
 final class PostgresFollowersRepositorySuite extends PostgresSuite:
@@ -35,30 +33,21 @@ object PostgresFollowersRepositorySuite:
       userRows: List[UserRow],
   )
 
-  final private case class UserData(userId: UserId, userWithPassword: UserWithHashPassword)
-
   private val testCaseGen = for
-    userKeys <- uniqueUserKeys(7)
-    users <- userKeys.traverse: key =>
-      for
-        user <- userGen(emailGen = key.email, usernameGen = key.username)
-        userWithHashPassword <- userWithHashPasswordGen(userGen = user)
-      yield UserData(key.userId, userWithHashPassword)
-    followed :: follower :: otherUserIds = userKeys.map(_.userId): @unchecked
+    case followed :: follower :: otherUsers <- uniqueTokenLessUsersWithId(7)
+    allUsers = followed :: follower :: otherUsers
     following <- Gen.oneOf(true, false)
-    followerRows = (if following then List(FollowerRow(followed, follower))
-                    else List.empty) ++ otherUserIds
-      .map(userId => FollowerRow(followed, userId))
-    userRows = users
-      .map:
-        case UserData(userId, userWithPassword) =>
-          val user = userWithPassword.user
-          UserRow(
-            userId,
-            user.email,
-            user.username,
-            userWithPassword.password.value,
-            user.bio,
-            user.image.map(_.toString),
-          )
-  yield TestCase(following, followed, follower, followerRows, userRows)
+    followerRows = (if following then List(FollowerRow(followed.userId, follower.userId))
+                    else List.empty) ++ otherUsers.map(x => FollowerRow(followed.userId, x.userId))
+    userRows = allUsers.map:
+      case UserWithId(userId, userWithPassword) =>
+        val user = userWithPassword.user
+        UserRow(
+          userId,
+          user.email,
+          user.username,
+          userWithPassword.password.value,
+          user.bio,
+          user.image.map(_.toString),
+        )
+  yield TestCase(following, followed.userId, follower.userId, followerRows, userRows)
