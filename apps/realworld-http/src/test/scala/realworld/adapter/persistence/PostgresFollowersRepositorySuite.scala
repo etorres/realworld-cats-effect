@@ -24,6 +24,9 @@ final class PostgresFollowersRepositorySuite extends PostgresSuite:
           obtained <- followersRepository.isFollowing(testCase.followed, testCase.follower)
         yield obtained).assertEquals(testCase.expected)
 
+  test("should follow a user"):
+    fail("not implemented")
+
 object PostgresFollowersRepositorySuite:
   final private case class TestCase(
       expected: Boolean,

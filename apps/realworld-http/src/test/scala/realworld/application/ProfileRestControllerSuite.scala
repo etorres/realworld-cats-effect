@@ -1,10 +1,13 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.adapter.rest.response.GetProfileResponse
+import realworld.adapter.rest.response.{FollowUserResponse, GetProfileResponse}
 import realworld.application.HttpAppSuite.*
 import realworld.application.HttpAppSuiteRunner.{runWith, HttpAppState}
-import realworld.application.ProfileRestControllerSuite.successfulGetProfileGen
+import realworld.application.ProfileRestControllerSuite.{
+  successfulFollowUserGen,
+  successfulGetProfileGen,
+}
 import realworld.domain.model.Profile
 import realworld.domain.model.UsersGenerators.*
 
@@ -24,6 +27,21 @@ final class ProfileRestControllerSuite extends HttpAppSuite:
           Request(
             method = Method.GET,
             uri = Uri.unsafeFromString(s"/api/profiles/${testCase.request}"),
+          ).putHeaders(testCase.authorization),
+        )
+      yield (result, finalState)).map { case (result, finalState) =>
+        assertEquals(result, Right(testCase.expectedResponse))
+        assertEquals(finalState, testCase.expectedState)
+      }
+
+  test("should follow a user"):
+    forAllF(successfulFollowUserGen): testCase =>
+      given Decoder[FollowUserResponse] = FollowUserResponse.followUserResponseJsonDecoder
+      (for (result, finalState) <- runWith(
+          testCase.initialState,
+          Request(
+            method = Method.POST,
+            uri = Uri.unsafeFromString(s"/api/profiles/${testCase.request}/follow"),
           ).putHeaders(testCase.authorization),
         )
       yield (result, finalState)).map { case (result, finalState) =>
@@ -55,6 +73,37 @@ object ProfileRestControllerSuite:
           followed.userWithPassword.user.bio,
           followed.userWithPassword.user.image,
           following,
+        ),
+      ),
+      Status.Ok,
+    )
+  yield TestCase(Some(authorization), initialState, expectedState, request, expectedResponse)
+
+  private val successfulFollowUserGen = for
+    case followed :: follower :: otherUsers <- uniqueUserData(7)
+    allUsers = followed :: follower :: otherUsers
+    alreadyFollowing <- Gen.oneOf(true, false)
+    followers = Map(
+      followed.userId -> ((if alreadyFollowing then List(follower.userId)
+                           else List.empty) ++ otherUsers.map(_.userId)),
+    )
+    authorization = authorizationFor(follower.userWithPassword.user)
+    initialState = HttpAppState.empty
+      .setFollowers(followers)
+      .setPasswords(passwordsFrom(allUsers))
+      .setTokens(tokensFrom(allUsers))
+      .setUsersWithPassword(List.empty, usersWithPasswordFrom(allUsers))
+    expectedState = initialState.setFollowers(
+      Map(followed.userId -> (follower :: otherUsers).map(_.userId)),
+    )
+    request = followed.userWithPassword.user.username
+    expectedResponse = (
+      FollowUserResponse(
+        Profile(
+          followed.userWithPassword.user.username,
+          followed.userWithPassword.user.bio,
+          followed.userWithPassword.user.image,
+          true,
         ),
       ),
       Status.Ok,

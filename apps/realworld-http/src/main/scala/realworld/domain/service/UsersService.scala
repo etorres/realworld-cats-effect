@@ -15,6 +15,12 @@ final class UsersService(
     followersRepository: FollowersRepository,
     usersRepository: UsersRepository,
 ):
+  def follow(username: Username, followerId: UserId): IO[Profile] = for
+    maybeUserWithId <- usersRepository.findUserWithIdBy(username)
+    (followedUser, followedId) <- IO.fromOption(maybeUserWithId)(UserNotFound("username", username))
+    _ <- followersRepository.follow(followedId, followerId)
+  yield Profile(followedUser.username, followedUser.bio, followedUser.image, true)
+
   def loginUserIdentifiedBy(credentials: Credentials): IO[User] = for
     maybeUserWithPassword <- usersRepository.findUserWithPasswordBy(credentials.email)
     userWithPassword <- IO.fromOption(maybeUserWithPassword)(AccessForbidden(credentials.email))

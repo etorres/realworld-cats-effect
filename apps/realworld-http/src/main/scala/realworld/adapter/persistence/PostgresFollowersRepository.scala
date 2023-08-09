@@ -12,6 +12,8 @@ import doobie.implicits.*
 
 final class PostgresFollowersRepository(transactor: HikariTransactor[IO])
     extends FollowersRepository:
+  override def follow(followed: UserId, follower: UserId): IO[Unit] = ???
+
   override def isFollowing(followed: UserId, follower: UserId): IO[Boolean] = for
     maybeFollowing <- sql"""select
                            |  user_id, follower_id
