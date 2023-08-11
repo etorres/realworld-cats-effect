@@ -5,12 +5,13 @@ import realworld.adapter.persistence.mappers.PaginationMapper.{
   limitDoobieMapper,
   offsetDoobieMapper,
 }
-import realworld.adapter.persistence.row.{ArticleRow, FavoriteRow, TagRow}
+import realworld.adapter.persistence.row.{ArticleWithAuthorRow, FavoriteRow, TagRow}
 import realworld.domain.model.Article.*
 import realworld.domain.model.Moment.{Created, Updated}
 import realworld.domain.model.User.Username
 import realworld.domain.model.{Article, Moment, UserId}
 import realworld.domain.service.{ArticlesFilters, ArticlesRepository, Pagination}
+import realworld.shared.data.refined.StringExtensions.toUri
 import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
 
 import cats.data.NonEmptyList
@@ -62,7 +63,7 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
                     |ORDER BY articles.created_at DESC
                     |LIMIT ${pagination.limit}
                     |OFFSET ${pagination.offset}""".stripMargin
-      .query[ArticleRow]
+      .query[ArticleWithAuthorRow]
       .to[List]
       .transact(transactor)
     articleIds = NonEmptyList.fromListUnsafe(articles.map(_.articleId))
@@ -92,10 +93,10 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
         favorited = favorites.exists(_.profileId == userId)
         favoritesCount = favorites.count(_.articleId == article.articleId)
         author <- for
-          username <- Username.from("username").validated
-          bio = None
-          image = None
-          following = false
+          username <- Username.from(article.username).validated
+          bio = article.bio
+          image <- article.image.traverse(_.toUri).validated
+          following = false // TODO
         yield Author(username, bio, image, following)
       yield Article(
         slug,
