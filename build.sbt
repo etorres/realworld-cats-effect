@@ -71,7 +71,7 @@ lazy val `realworld-http` = project
       "org.http4s" %% "http4s-prometheus-metrics" % "0.24.4" % Runtime,
       "org.postgresql" % "postgresql" % "42.6.0",
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC4",
-      "org.tpolecat" %% "doobie-postgres" % "1.0.0-RC4" % Runtime,
+      "org.tpolecat" %% "doobie-postgres" % "1.0.0-RC4",
       "org.typelevel" %% "cats-collections-core" % "0.9.7",
       "org.typelevel" %% "cats-core" % "2.9.0",
       "org.typelevel" %% "cats-effect" % "3.5.1",

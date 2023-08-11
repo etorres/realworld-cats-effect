@@ -12,6 +12,9 @@ object StringGenerators:
   def alphaNumericStringShorterThan(maxLength: Int): Gen[String] =
     stringShorterThan(maxLength, Gen.alphaNumChar)
 
+  def alphaLowerStringBetween(minLength: Int, maxLength: Int): Gen[String] =
+    stringBetween(minLength, maxLength, Gen.alphaLowerChar)
+
   val nonEmptyAlphaNumericStringGen: Gen[String] =
     nonEmptyStringShorterThan(defaultMaxLength, Gen.alphaNumChar)
 

@@ -13,21 +13,21 @@ import doobie.implicits.*
 final class PostgresFollowersRepository(transactor: HikariTransactor[IO])
     extends FollowersRepository:
   override def follow(followed: UserId, follower: UserId): IO[Unit] =
-    sql"""insert into followers (
-         |  user_id, follower_id
-         |) values (
+    sql"""INSERT INTO followers (
+         |  user_id,
+         |  follower_id
+         |) VALUES (
          |  $followed,
          |  $follower
-         |) on conflict (user_id, follower_id) do nothing""".stripMargin.update.run
+         |) ON CONFLICT (user_id, follower_id) DO NOTHING""".stripMargin.update.run
       .transact(transactor)
       .void
 
   override def isFollowing(followed: UserId, follower: UserId): IO[Boolean] = for
-    maybeFollowing <- sql"""select
-                           |  user_id, follower_id
-                           |from followers
-                           |where user_id = $followed
-                           |  and follower_id = $follower""".stripMargin
+    maybeFollowing <- sql"""SELECT user_id, follower_id
+                           |FROM followers
+                           |WHERE user_id = $followed
+                           |AND follower_id = $follower""".stripMargin
       .query[FollowerRow]
       .option
       .transact(transactor)
@@ -35,8 +35,8 @@ final class PostgresFollowersRepository(transactor: HikariTransactor[IO])
   yield following
 
   override def unfollow(followed: UserId, follower: UserId): IO[Unit] =
-    sql"""delete from followers
-         |where user_id = $followed
-         |  and follower_id = $follower""".stripMargin.update.run
+    sql"""DELETE FROM followers
+         |WHERE user_id = $followed
+         |AND follower_id = $follower""".stripMargin.update.run
       .transact(transactor)
       .void

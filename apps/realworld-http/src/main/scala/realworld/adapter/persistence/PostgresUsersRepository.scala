@@ -23,9 +23,11 @@ import org.postgresql.util.{PSQLException, PSQLState}
 
 final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends UsersRepository:
   override def create(newUser: UserWithHashPassword): IO[User] = (for
-    _ <- sql"""insert into users (
-              |  email, username, password
-              |) values (
+    _ <- sql"""INSERT INTO USERS (
+              |  email,
+              |  username,
+              |  password
+              |) VALUES (
               |  ${newUser.user.email},
               |  ${newUser.user.username},
               |  ${newUser.password}
@@ -40,10 +42,15 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
   }
 
   override def findUserBy(userId: UserId): IO[Option[User]] = for
-    userRow <- sql"""select
-                    |  user_id, email, username, password, bio, image
-                    |from users
-                    |where user_id = $userId""".stripMargin
+    userRow <- sql"""SELECT
+                    |  user_id,
+                    |  email,
+                    |  username,
+                    |  password,
+                    |  bio,
+                    |  image
+                    |FROM users
+                    |WHERE user_id = $userId""".stripMargin
       .query[UserRow]
       .option
       .transact(transactor)
@@ -54,10 +61,15 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
   yield user
 
   override def findUserWithIdBy(username: Username): IO[Option[(User, UserId)]] = for
-    maybeUserRow <- sql"""select
-                         |  user_id, email, username, password, bio, image
-                         |from users
-                         |where username = $username""".stripMargin
+    maybeUserRow <- sql"""SELECT
+                         |  user_id,
+                         |  email,
+                         |  username,
+                         |  password,
+                         |  bio,
+                         |  image
+                         |FROM users
+                         |WHERE username = $username""".stripMargin
       .query[UserRow]
       .option
       .transact(transactor)
@@ -81,23 +93,28 @@ final class PostgresUsersRepository(transactor: HikariTransactor[IO]) extends Us
   yield userWithPassword
 
   override def update(updatedUser: UserWithHashPassword, userId: UserId): IO[User] = for
-    _ <- sql"""update users set
+    _ <- sql"""UPDATE USERS SET
               |  email = ${updatedUser.user.email},
               |  username = ${updatedUser.user.username},
               |  password = ${updatedUser.password},
               |  bio = ${updatedUser.user.bio},
               |  image = ${updatedUser.user.image.map(_.toString)}
-              |where user_id = $userId""".stripMargin.update.run
+              |WHERE user_id = $userId""".stripMargin.update.run
       .transact(transactor)
       .void
     user = updatedUser.user
   yield user
 
   private def findBy(email: Email): IO[Option[UserRow]] =
-    sql"""select
-         |  user_id, email, username, password, bio, image
-         |from users
-         |where email = $email""".stripMargin
+    sql"""SELECT
+         |  user_id,
+         |  email,
+         |  username,
+         |  password,
+         |  bio,
+         |  image
+         |FROM users
+         |WHERE email = $email""".stripMargin
       .query[UserRow]
       .option
       .transact(transactor)

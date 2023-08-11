@@ -9,9 +9,9 @@ import doobie.implicits.*
 
 final class PostgresFollowersTestRepository(transactor: HikariTransactor[IO]):
   def add(row: FollowerRow): IO[Unit] =
-    sql"""insert into followers (
+    sql"""INSERT INTO followers (
          |  user_id, follower_id
-         |) values (
+         |) VALUES (
          |  ${row.userId},
          |  ${row.followerId}
          |)""".stripMargin.update.run.transact(transactor).void
