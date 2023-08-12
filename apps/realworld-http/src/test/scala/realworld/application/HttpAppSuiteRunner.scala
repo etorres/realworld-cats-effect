@@ -1,16 +1,21 @@
 package es.eriktorr
 package realworld.application
 
+import realworld.adapter.persistence.FakeArticlesRepository.ArticlesRepositoryState
 import realworld.adapter.persistence.FakeFollowersRepository.FollowersRepositoryState
 import realworld.adapter.persistence.FakeUsersRepository.UsersRepositoryState
-import realworld.adapter.persistence.{FakeFollowersRepository, FakeUsersRepository}
+import realworld.adapter.persistence.{
+  FakeArticlesRepository,
+  FakeFollowersRepository,
+  FakeUsersRepository,
+}
 import realworld.domain.model.Password.{CipherText, PlainText}
 import realworld.domain.model.User.Token
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
-import realworld.domain.model.{Email, Password, UserId}
+import realworld.domain.model.{Article, Email, Password, UserId}
 import realworld.domain.service.FakeAuthService.AuthServiceState
 import realworld.domain.service.FakeCipherService.CipherServiceState
-import realworld.domain.service.{FakeAuthService, FakeCipherService, UsersService}
+import realworld.domain.service.*
 import realworld.shared.adapter.rest.FakeHealthService.HealthServiceState
 import realworld.shared.adapter.rest.{FakeHealthService, FakeMetricsService, FakeTraceService}
 
@@ -24,12 +29,15 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object HttpAppSuiteRunner:
   final case class HttpAppState(
+      articlesRepositoryState: ArticlesRepositoryState,
       authServiceState: AuthServiceState,
       cipherServiceState: CipherServiceState,
       followersRepositoryState: FollowersRepositoryState,
       healthServiceState: HealthServiceState,
       usersRepositoryState: UsersRepositoryState,
   ):
+    def setArticles(articles: Map[(ArticlesFilters, Pagination), List[Article]]): HttpAppState =
+      copy(articlesRepositoryState = articlesRepositoryState.setArticles(articles))
     def setFollowers(followers: Map[UserId, List[UserId]]): HttpAppState =
       copy(followersRepositoryState = followersRepositoryState.setFollowers(followers))
     def setPasswords(
@@ -46,6 +54,7 @@ object HttpAppSuiteRunner:
 
   object HttpAppState:
     def empty: HttpAppState = HttpAppState(
+      ArticlesRepositoryState.empty,
       AuthServiceState.empty,
       CipherServiceState.empty,
       FollowersRepositoryState.empty,
@@ -56,6 +65,9 @@ object HttpAppSuiteRunner:
   def runWith[A](initialState: HttpAppState, request: Request[IO])(using
       entityDecoder: EntityDecoder[IO, A],
   ): IO[(Either[Throwable, (A, Status)], HttpAppState)] = for
+    articlesRepositoryStateRef <- Ref.of[IO, ArticlesRepositoryState](
+      initialState.articlesRepositoryState,
+    )
     authServiceStateRef <- Ref.of[IO, AuthServiceState](initialState.authServiceState)
     cipherServiceStateRef <- Ref.of[IO, CipherServiceState](initialState.cipherServiceState)
     followersRepositoryStateRef <- Ref.of[IO, FollowersRepositoryState](
@@ -65,6 +77,8 @@ object HttpAppSuiteRunner:
     usersRepositoryStateRef <- Ref.of[IO, UsersRepositoryState](
       initialState.usersRepositoryState,
     )
+    articlesRepository = FakeArticlesRepository(articlesRepositoryStateRef)
+    articlesService = ArticlesService(articlesRepository)
     authService = FakeAuthService(authServiceStateRef)
     cipherService = FakeCipherService(cipherServiceStateRef)
     followersRepository = FakeFollowersRepository(followersRepositoryStateRef)
@@ -76,6 +90,7 @@ object HttpAppSuiteRunner:
     httpApp =
       given SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]
       RealWorldHttpApp(
+        articlesService,
         authService,
         healthService,
         metricsService,
@@ -94,12 +109,14 @@ object HttpAppSuiteRunner:
         _ <- requestId.refineOption[ValidUUID]
       yield ())(IllegalStateException("Request Id not found"))
     yield (body, status)).attempt
+    finalArticlesRepositoryState <- articlesRepositoryStateRef.get
     finalAuthServiceState <- authServiceStateRef.get
     finalCipherServiceState <- cipherServiceStateRef.get
     finalFollowersRepositoryState <- followersRepositoryStateRef.get
     finalHealthServiceState <- healthServiceStateRef.get
     finalUsersRepositoryState <- usersRepositoryStateRef.get
     finalState = initialState.copy(
+      articlesRepositoryState = finalArticlesRepositoryState,
       authServiceState = finalAuthServiceState,
       cipherServiceState = finalCipherServiceState,
       followersRepositoryState = finalFollowersRepositoryState,

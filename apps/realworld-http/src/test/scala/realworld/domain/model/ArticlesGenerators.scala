@@ -3,7 +3,7 @@ package realworld.domain.model
 
 import realworld.domain.model.Article.*
 import realworld.domain.model.Moment.{Created, Updated}
-import realworld.domain.model.UsersGenerators.userIdGen
+import realworld.domain.model.UsersGenerators.{userIdGen, UserWithId}
 import realworld.shared.spec.CollectionGenerators.nDistinct
 import realworld.shared.spec.StringGenerators.{alphaLowerStringBetween, alphaNumericStringBetween}
 import realworld.shared.spec.TemporalGenerators.{localDateTimeAfter, localDateTimeGen}
@@ -21,7 +21,7 @@ object ArticlesGenerators:
 
   private val bodyGen = textGen(7).map(Body.unsafeFrom)
 
-  private val tagGen = categoryGen().map(Tag.unsafeFrom)
+  val tagGen: Gen[Tag] = categoryGen().map(Tag.unsafeFrom)
 
   private def textGen(maxWords: Int = 10) = for
     numWords <- Gen.choose(1, maxWords)
@@ -114,3 +114,34 @@ object ArticlesGenerators:
       ),
     )
   yield articleData
+
+  @SuppressWarnings(Array("org.wartremover.warts.Throw"))
+  def articlesFrom(
+      articlesData: List[ArticleData],
+      followers: Map[UserId, List[UserId]],
+      users: List[UserWithId],
+      userId: UserId,
+  ): List[Article] =
+    articlesData.map:
+      case ArticleData(content, favorites, tags) =>
+        val author = users
+          .find(_.userId == content.authorId)
+          .map(_.userWithPassword.user)
+          .getOrElse(throw IllegalStateException(s"Author Id not found: ${content.authorId}"))
+        Article(
+          content.slug,
+          content.title,
+          content.description,
+          content.body,
+          tags.sorted,
+          content.createdAt,
+          content.updatedAt,
+          favorites.contains(userId),
+          favorites.length,
+          Author(
+            author.username,
+            author.bio,
+            author.image,
+            followers.get(content.authorId).exists(_.contains(userId)),
+          ),
+        )

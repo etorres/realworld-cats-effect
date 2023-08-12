@@ -3,8 +3,13 @@ package realworld.adapter.persistence
 
 import realworld.adapter.persistence.PostgresArticlesRepositorySuite.*
 import realworld.adapter.persistence.row.*
-import realworld.domain.model.Article.{Author, Tag}
-import realworld.domain.model.ArticlesGenerators.{uniqueArticleData, ArticleContent, ArticleData}
+import realworld.domain.model.Article.Tag
+import realworld.domain.model.ArticlesGenerators.{
+  articlesFrom,
+  uniqueArticleData,
+  ArticleContent,
+  ArticleData,
+}
 import realworld.domain.model.FollowersGenerators.followersGen
 import realworld.domain.model.User.Username
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
@@ -56,7 +61,6 @@ final class PostgresArticlesRepositorySuite extends PostgresSuite:
           )
         yield obtained.sortBy(_.slug)).assertEquals(testCase.expected.sortBy(_.slug))
 
-@SuppressWarnings(Array("org.wartremover.warts.Throw"))
 object PostgresArticlesRepositorySuite:
   final private case class TestCase(
       articleRows: List[ArticleRow],
@@ -147,29 +151,13 @@ object PostgresArticlesRepositorySuite:
       filtered
         .sorted(Ordering.by((_: ArticleData).content.createdAt.value).reverse)
         .slice(pagination.offset, pagination.offset + pagination.limit)
-    .map:
-      case ArticleData(content, favorites, tags) =>
-        val author = allUsers
-          .find(_.userId == content.authorId)
-          .map(_.userWithPassword.user)
-          .getOrElse(throw IllegalStateException(s"Author Id not found: ${content.authorId}"))
-        Article(
-          content.slug,
-          content.title,
-          content.description,
-          content.body,
-          tags.sorted,
-          content.createdAt,
-          content.updatedAt,
-          favorites.contains(selectedUser.userId),
-          favorites.length,
-          Author(
-            author.username,
-            author.bio,
-            author.image,
-            allFollowers.get(content.authorId).exists(_.contains(selectedUser.userId)),
-          ),
-        )
+    .pipe: filtered =>
+      articlesFrom(
+        filtered,
+        allFollowers,
+        allUsers,
+        selectedUser.userId,
+      )
   yield TestCase(
     articleRows,
     expected,

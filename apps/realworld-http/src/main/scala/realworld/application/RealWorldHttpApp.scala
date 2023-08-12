@@ -1,8 +1,8 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.adapter.rest.{ProfileRestController, UsersRestController}
-import realworld.domain.service.{AuthService, UsersService}
+import realworld.adapter.rest.{ArticlesRestController, ProfileRestController, UsersRestController}
+import realworld.domain.service.{ArticlesService, AuthService, UsersService}
 import realworld.shared.adapter.rest.{HealthService, MetricsService, TraceService}
 
 import cats.effect.IO
@@ -16,6 +16,7 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import scala.util.chaining.scalaUtilChainingOps
 
 final class RealWorldHttpApp(
+    articlesService: ArticlesService,
     authService: AuthService,
     healthService: HealthService,
     metricsService: MetricsService,
@@ -25,13 +26,14 @@ final class RealWorldHttpApp(
 )(using logger: SelfAwareStructuredLogger[IO]):
   private val apiEndpoint: HttpRoutes[IO] = metricsService
     .metricsFor(
-      UsersRestController(
-        authService,
-        usersService,
-      ).routes <+> ProfileRestController(
-        authService,
-        usersService,
-      ).routes,
+      ArticlesRestController(articlesService, authService, usersService).routes <+>
+        UsersRestController(
+          authService,
+          usersService,
+        ).routes <+> ProfileRestController(
+          authService,
+          usersService,
+        ).routes,
     )
     .pipe: routes =>
       // Allow the compression of the Response body using GZip

@@ -1,9 +1,13 @@
 package es.eriktorr
 package realworld
 
-import realworld.adapter.persistence.{PostgresFollowersRepository, PostgresUsersRepository}
+import realworld.adapter.persistence.{
+  PostgresArticlesRepository,
+  PostgresFollowersRepository,
+  PostgresUsersRepository,
+}
 import realworld.application.{HttpServer, RealWorldConfig, RealWorldHttpApp, RealWorldParams}
-import realworld.domain.service.{AuthService, CipherService, UsersService}
+import realworld.domain.service.{ArticlesService, AuthService, CipherService, UsersService}
 import realworld.shared.ConsoleLogger
 import realworld.shared.adapter.persistence.JdbcTransactor
 import realworld.shared.adapter.rest.{HealthService, MetricsService, ServiceName, TraceService}
@@ -30,6 +34,8 @@ object RealWorldApp extends CommandIOApp(name = "realworld-http", header = "Real
     _ <- (for
       consoleLogger <- ConsoleLogger.resource
       transactor <- JdbcTransactor(config.jdbcConfig).resource
+      articlesRepository = PostgresArticlesRepository(transactor)
+      articlesService = ArticlesService(articlesRepository)
       authService = AuthService.impl(config.securityConfig)
       cipherService = CipherService.impl
       followersRepository = PostgresFollowersRepository(transactor)
@@ -46,6 +52,7 @@ object RealWorldApp extends CommandIOApp(name = "realworld-http", header = "Real
             // Limit the number of active requests by rejecting requests over the limit defined
             middleware(
               RealWorldHttpApp(
+                articlesService,
                 authService,
                 healthService,
                 metricsService,

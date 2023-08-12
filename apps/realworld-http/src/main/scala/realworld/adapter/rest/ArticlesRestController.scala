@@ -6,7 +6,7 @@ import realworld.adapter.rest.query.FavoritedQueryParam.OptionalFavoritedQueryPa
 import realworld.adapter.rest.query.LimitQueryParam.OptionalLimitQueryParamMatcher
 import realworld.adapter.rest.query.OffsetQueryParam.OptionalOffsetQueryParamMatcher
 import realworld.adapter.rest.query.TagQueryParam.OptionalTagQueryParamMatcher
-import realworld.adapter.rest.response.GetArticlesResponse
+import realworld.adapter.rest.response.ListArticlesResponse
 import realworld.domain.model.UserId
 import realworld.domain.service.*
 
@@ -40,7 +40,7 @@ final class ArticlesRestController(
             ),
             userId,
           )
-          response <- Ok(GetArticlesResponse(articles, articles.length))
+          response <- Ok(ListArticlesResponse(articles, articles.length))
         yield response).handleErrorWith(contextFrom(request.req))
 
     authMiddleware(secureRoutes)
