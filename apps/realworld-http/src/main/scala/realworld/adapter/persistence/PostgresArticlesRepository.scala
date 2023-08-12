@@ -89,7 +89,6 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
       .map(_.userId)
       .to[List]
       .transact(transactor)
-    _ = println(s" >> FOLLOWED: $followed") // TODO
     result <- articles.traverse: article =>
       for
         slug <- Slug.from(article.slug).validated

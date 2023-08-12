@@ -36,6 +36,7 @@ final class PostgresArticlesRepositorySuite extends PostgresSuite:
           )
         yield obtained.sortBy(_.slug)).assertEquals(testCase.expected.sortBy(_.slug))
 
+@SuppressWarnings(Array("org.wartremover.warts.Throw"))
 object PostgresArticlesRepositorySuite:
   final private case class TestCase(
       articleRows: List[ArticleRow],
