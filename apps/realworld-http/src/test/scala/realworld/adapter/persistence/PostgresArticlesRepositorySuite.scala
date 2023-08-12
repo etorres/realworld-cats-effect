@@ -10,6 +10,7 @@ import realworld.domain.model.User.Username
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
 import realworld.domain.model.UsersGenerators.{uniqueTokenLessUsersWithId, UserWithId}
 import realworld.domain.model.{Article, UserId, UserWithPassword}
+import realworld.domain.service.Pagination.{Limit, Offset}
 import realworld.domain.service.{ArticlesFilters, Pagination}
 import realworld.shared.spec.PostgresSuite
 
@@ -31,6 +32,9 @@ final class PostgresArticlesRepositorySuite extends PostgresSuite:
 
   test("Should find articles filtered by tag"):
     testWith(filterByTagTestCaseGen)
+
+  test("Should find articles within the specified range"):
+    testWith(paginationTestCaseGen)
 
   private def testWith(testCaseGen: Gen[TestCase]) =
     forAllF(testCaseGen): testCase =>
@@ -88,8 +92,15 @@ object PostgresArticlesRepositorySuite:
     filtersGen(None, None, Gen.some(Gen.oneOf(tags)))
   }
 
+  private val paginationTestCaseGen =
+    testCaseGen(
+      (_, _, _) => Gen.const(ArticlesFilters(None, None, None)),
+      Gen.const(Pagination(Limit.unsafeFrom(2), Offset.unsafeFrom(1))),
+    )
+
   private def testCaseGen(
       filtersGen: (List[Username], List[Username], List[Tag]) => Gen[ArticlesFilters],
+      paginationGen: Gen[Pagination] = Gen.const(Pagination.default),
   ) = for
     case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
     allUsers = selectedUser :: otherUsers
@@ -103,7 +114,7 @@ object PostgresArticlesRepositorySuite:
         allArticles.flatMap(_.favorites).map(users.get).collect { case Some(value) => value }
       val tags = allArticles.flatMap(_.tags)
       filtersGen(authors, favorited, tags)
-    pagination = Pagination.default
+    pagination <- paginationGen
     articleRows = allArticles.map:
       case ArticleData(content, _, _) => articleRowFrom(content)
     favoriteRows = allArticles.flatMap:
