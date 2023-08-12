@@ -11,6 +11,7 @@ final case class ArticleWithAuthorRow(
     body: String,
     createdAt: LocalDateTime,
     updatedAt: LocalDateTime,
+    authorId: Int,
     username: String,
     bio: Option[String],
     image: Option[String],

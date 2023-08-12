@@ -5,7 +5,8 @@ import realworld.adapter.persistence.mappers.PaginationMapper.{
   limitDoobieMapper,
   offsetDoobieMapper,
 }
-import realworld.adapter.persistence.row.{ArticleWithAuthorRow, FavoriteRow, TagRow}
+import realworld.adapter.persistence.mappers.UserIdDoobieMapper.userIdDoobieMapper
+import realworld.adapter.persistence.row.{ArticleWithAuthorRow, FavoriteRow, FollowerRow, TagRow}
 import realworld.domain.model.Article.*
 import realworld.domain.model.Moment.{Created, Updated}
 import realworld.domain.model.User.Username
@@ -67,6 +68,7 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
       .to[List]
       .transact(transactor)
     articleIds = NonEmptyList.fromListUnsafe(articles.map(_.articleId))
+    authorIds = NonEmptyList.fromListUnsafe(articles.map(_.authorId))
     favorites <- sql"""SELECT profile_id, article_id
                       |FROM favorites
                       |WHERE ${in(fr"article_id", articleIds)}""".stripMargin
@@ -79,6 +81,15 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
       .query[TagRow]
       .to[List]
       .transact(transactor)
+    followed <- sql"""SELECT user_id, follower_id
+                     |FROM followers
+                     |WHERE ${in(fr"user_id", authorIds)}
+                     |AND follower_id = $userId""".stripMargin
+      .query[FollowerRow]
+      .map(_.userId)
+      .to[List]
+      .transact(transactor)
+    _ = println(s" >> FOLLOWED: $followed") // TODO
     result <- articles.traverse: article =>
       for
         slug <- Slug.from(article.slug).validated
@@ -90,13 +101,13 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
             Tag.from(tag.tag).validated
         createdAt <- Moment.from[Created](article.createdAt).validated
         updatedAt <- Moment.from[Updated](article.updatedAt).validated
-        favorited = favorites.exists(_.profileId == userId)
+        favorited = favorites.filter(_.articleId == article.articleId).exists(_.profileId == userId)
         favoritesCount = favorites.count(_.articleId == article.articleId)
         author <- for
           username <- Username.from(article.username).validated
           bio = article.bio
           image <- article.image.traverse(_.toUri).validated
-          following = false // TODO
+          following = followed.contains(article.authorId)
         yield Author(username, bio, image, following)
       yield Article(
         slug,

@@ -20,10 +20,12 @@ final class PostgresArticlesRepositorySuite extends PostgresSuite:
     forAllF(testCaseGen): testCase =>
       testTransactor.resource.use: transactor =>
         val usersTestRepository = PostgresUsersTestRepository(transactor)
+        val followersTestRepository = PostgresFollowersTestRepository(transactor)
         val articlesTestRepository = PostgresArticlesTestRepository(transactor)
         val articlesRepository = PostgresArticlesRepository(transactor)
         (for
           _ <- testCase.userRows.traverse_(usersTestRepository.add)
+          _ <- testCase.followerRows.traverse_(followersTestRepository.add)
           _ <- testCase.articleRows.traverse_(articlesTestRepository.add)
           _ <- testCase.favoriteRows.traverse_(articlesTestRepository.add)
           _ <- testCase.tagRows.traverse_(articlesTestRepository.add)
@@ -32,7 +34,7 @@ final class PostgresArticlesRepositorySuite extends PostgresSuite:
             testCase.pagination,
             testCase.userId,
           )
-        yield obtained).assertEquals(testCase.expected)
+        yield obtained.sortBy(_.slug)).assertEquals(testCase.expected.sortBy(_.slug))
 
 object PostgresArticlesRepositorySuite:
   final private case class TestCase(
@@ -63,7 +65,7 @@ object PostgresArticlesRepositorySuite:
       )
       .map(_.collect { case Some(value) => value })
       .map(_.groupBy(_._1))
-      .map(_.view.mapValues(_.map(_._2)))
+      .map(_.view.mapValues(_.map(_._2)).toMap)
     filters = ArticlesFilters(None, None, None)
     pagination = Pagination.default
     articleRows = allArticles.map:
@@ -111,13 +113,13 @@ object PostgresArticlesRepositorySuite:
           tags,
           content.createdAt,
           content.updatedAt,
-          favorites.contains(selectedUser),
+          favorites.contains(selectedUser.userId),
           favorites.length,
           Author(
             author.username,
             author.bio,
             author.image,
-            allFollowers.get(content.authorId).exists(_.contains(selectedUser)),
+            allFollowers.get(content.authorId).exists(_.contains(selectedUser.userId)),
           ),
         )
   yield TestCase(
