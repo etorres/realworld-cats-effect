@@ -26,14 +26,17 @@ final class RealWorldHttpApp(
 )(using logger: SelfAwareStructuredLogger[IO]):
   private val apiEndpoint: HttpRoutes[IO] = metricsService
     .metricsFor(
-      ArticlesRestController(articlesService, authService, usersService).routes <+>
-        UsersRestController(
-          authService,
-          usersService,
-        ).routes <+> ProfileRestController(
-          authService,
-          usersService,
-        ).routes,
+      UsersRestController(
+        authService,
+        usersService,
+      ).routes <+> ArticlesRestController(
+        articlesService,
+        authService,
+        usersService,
+      ).routes <+> ProfileRestController(
+        authService,
+        usersService,
+      ).routes,
     )
     .pipe: routes =>
       // Allow the compression of the Response body using GZip
