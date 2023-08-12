@@ -4,15 +4,16 @@ package realworld.adapter.persistence
 import realworld.adapter.persistence.PostgresArticlesRepositorySuite.testCaseGen
 import realworld.adapter.persistence.row.*
 import realworld.domain.model.Article.Author
-import realworld.domain.model.ArticlesGenerators.{uniqueArticleData, ArticleData}
+import realworld.domain.model.ArticlesGenerators.{uniqueArticleData, ArticleContent, ArticleData}
+import realworld.domain.model.FollowersGenerators.followersGen
+import realworld.domain.model.UserWithPassword.UserWithHashPassword
 import realworld.domain.model.UsersGenerators.{uniqueTokenLessUsersWithId, UserWithId}
-import realworld.domain.model.{Article, UserId}
+import realworld.domain.model.{Article, UserId, UserWithPassword}
 import realworld.domain.service.{ArticlesFilters, Pagination}
 import realworld.shared.spec.PostgresSuite
 
-import cats.implicits.{toFoldableOps, toTraverseOps}
+import cats.implicits.toFoldableOps
 import org.scalacheck.Gen
-import org.scalacheck.cats.implicits.genInstances
 import org.scalacheck.effect.PropF.forAllF
 
 final class PostgresArticlesRepositorySuite extends PostgresSuite:
@@ -36,6 +37,9 @@ final class PostgresArticlesRepositorySuite extends PostgresSuite:
           )
         yield obtained.sortBy(_.slug)).assertEquals(testCase.expected.sortBy(_.slug))
 
+  // TODO: test pagination
+  // TODO: test filters
+
 @SuppressWarnings(Array("org.wartremover.warts.Throw"))
 object PostgresArticlesRepositorySuite:
   final private case class TestCase(
@@ -54,33 +58,11 @@ object PostgresArticlesRepositorySuite:
     case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
     allUsers = selectedUser :: otherUsers
     allArticles <- uniqueArticleData(7, Gen.oneOf(allUsers.map(_.userId)))
-    allFollowers <- allUsers
-      .map(_.userId)
-      .flatTraverse(bob =>
-        allUsers
-          .map(_.userId)
-          .traverse(alice =>
-            if bob != alice then Gen.frequency(1 -> Some(bob -> alice), 1 -> None)
-            else Gen.const(None),
-          ),
-      )
-      .map(_.collect { case Some(value) => value })
-      .map(_.groupBy(_._1))
-      .map(_.view.mapValues(_.map(_._2)).toMap)
+    allFollowers <- followersGen(allUsers.map(_.userId))
     filters = ArticlesFilters(None, None, None)
     pagination = Pagination.default
     articleRows = allArticles.map:
-      case ArticleData(content, _, _) =>
-        ArticleRow(
-          content.articleId,
-          content.slug,
-          content.title,
-          content.description,
-          content.body,
-          content.createdAt.value,
-          content.updatedAt.value,
-          content.authorId,
-        )
+      case ArticleData(content, _, _) => articleRowFrom(content)
     favoriteRows = allArticles.flatMap:
       case ArticleData(content, favorites, _) =>
         favorites.map(profileId => FavoriteRow(profileId, content.articleId))
@@ -91,15 +73,7 @@ object PostgresArticlesRepositorySuite:
         tags.map(tag => TagRow(tag, content.articleId))
     userRows = allUsers.map:
       case UserWithId(userId, userWithPassword) =>
-        val user = userWithPassword.user
-        UserRow(
-          userId,
-          user.email,
-          user.username,
-          userWithPassword.password.value,
-          user.bio,
-          user.image.map(_.toString),
-        )
+        userRowFrom(userId, userWithPassword)
     expected = allArticles.map:
       case ArticleData(content, favorites, tags) =>
         val author = allUsers
@@ -134,3 +108,26 @@ object PostgresArticlesRepositorySuite:
     selectedUser.userId,
     userRows,
   )
+
+  private def articleRowFrom(content: ArticleContent) =
+    ArticleRow(
+      content.articleId,
+      content.slug,
+      content.title,
+      content.description,
+      content.body,
+      content.createdAt.value,
+      content.updatedAt.value,
+      content.authorId,
+    )
+
+  private def userRowFrom(userId: UserId, userWithPassword: UserWithHashPassword) =
+    val user = userWithPassword.user
+    UserRow(
+      userId,
+      user.email,
+      user.username,
+      userWithPassword.password.value,
+      user.bio,
+      user.image.map(_.toString),
+    )
