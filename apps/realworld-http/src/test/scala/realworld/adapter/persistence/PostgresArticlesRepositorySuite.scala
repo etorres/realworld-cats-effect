@@ -21,19 +21,19 @@ import org.scalacheck.effect.PropF.forAllF
 import scala.util.chaining.scalaUtilChainingOps
 
 final class PostgresArticlesRepositorySuite extends PostgresSuite:
-  test("Should find all articles"):
+  test("should find all articles"):
     testWith(findAllArticlesTestCaseGen)
 
-  test("Should find articles filtered by favorited"):
+  test("should find articles filtered by favorited"):
     testWith(filterByFavoritedTestCaseGen)
 
-  test("Should find articles filtered by author"):
+  test("should find articles filtered by author"):
     testWith(filterByAuthorTestCaseGen)
 
-  test("Should find articles filtered by tag"):
+  test("should find articles filtered by tag"):
     testWith(filterByTagTestCaseGen)
 
-  test("Should find articles within the specified range"):
+  test("should find articles within the specified range"):
     testWith(paginationTestCaseGen)
 
   private def testWith(testCaseGen: Gen[TestCase]) =
