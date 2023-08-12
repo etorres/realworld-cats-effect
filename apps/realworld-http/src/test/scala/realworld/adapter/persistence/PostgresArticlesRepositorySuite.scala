@@ -54,14 +54,7 @@ final class PostgresArticlesRepositorySuite extends PostgresSuite:
             testCase.pagination,
             testCase.userId,
           )
-          // TODO
-          _ = println(s"\n >> FILTERS: ${testCase.filters}\n")
-          _ = println(s"\n >> OBTAINED: ${obtained.length}\n")
-          _ = println(s"\n >> EXPECTED: ${testCase.expected.length}\n")
-        // TODO
         yield obtained.sortBy(_.slug)).assertEquals(testCase.expected.sortBy(_.slug))
-
-  // TODO: test pagination
 
 @SuppressWarnings(Array("org.wartremover.warts.Throw"))
 object PostgresArticlesRepositorySuite:
@@ -150,6 +143,10 @@ object PostgresArticlesRepositorySuite:
           filtered.filter:
             case ArticleData(_, _, tags) => tags.contains(selectedTag)
         case None => filtered
+    .pipe: filtered =>
+      filtered
+        .sorted(Ordering.by((_: ArticleData).content.createdAt.value).reverse)
+        .slice(pagination.offset, pagination.offset + pagination.limit)
     .map:
       case ArticleData(content, favorites, tags) =>
         val author = allUsers
