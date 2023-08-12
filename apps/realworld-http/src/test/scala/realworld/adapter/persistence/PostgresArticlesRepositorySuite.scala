@@ -150,7 +150,7 @@ object PostgresArticlesRepositorySuite:
           content.title,
           content.description,
           content.body,
-          tags,
+          tags.sorted,
           content.createdAt,
           content.updatedAt,
           favorites.contains(selectedUser.userId),

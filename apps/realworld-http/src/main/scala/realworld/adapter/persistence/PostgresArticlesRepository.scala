@@ -122,7 +122,7 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
         title,
         article.description,
         body,
-        tagList,
+        tagList.sorted,
         createdAt,
         updatedAt,
         favorited,

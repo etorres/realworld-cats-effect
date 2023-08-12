@@ -32,7 +32,7 @@ object ArticlesGenerators:
     numWords <- Gen.choose(1, maxWords)
     category <- Gen
       .listOfN(numWords, alphaLowerStringBetween(3, 12))
-      .map(_.mkString(" "))
+      .map(_.mkString("-"))
   yield category
 
   final case class ArticleKey(articleId: ArticleId, slug: Slug, title: Title)

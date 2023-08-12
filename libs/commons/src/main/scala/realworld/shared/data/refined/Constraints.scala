@@ -26,8 +26,8 @@ object Constraints:
     "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$",
   ], "Should be a valid email"]
 
-  type ValidSlug = DescribedAs[Match["^[a-z][a-z0-9-].*[a-z0-9]$"], "Should be a valid slug"]
+  type ValidSlug = DescribedAs[Match["^[a-z][a-z0-9-]*[a-z0-9]$"], "Should be a valid slug"]
 
-  type ValidTag = DescribedAs[Match["^[a-z][a-z0-9-].*[a-z0-9]$"], "Should be a valid tag"]
+  type ValidTag = DescribedAs[Match["^[a-z][a-z0-9-]*[a-z0-9]$"], "Should be a valid tag"]
 
   type UrlPathSegment = DescribedAs[Match["^/[0-9a-zA-Z_-]+"], "Should be a valid URL path segment"]
