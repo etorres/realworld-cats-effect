@@ -5,7 +5,9 @@ import realworld.adapter.persistence.mappers.PaginationMapper.{
   limitDoobieMapper,
   offsetDoobieMapper,
 }
+import realworld.adapter.persistence.mappers.TagDoobieMapper.tagDoobieMapper
 import realworld.adapter.persistence.mappers.UserIdDoobieMapper.userIdDoobieMapper
+import realworld.adapter.persistence.mappers.UsernameDoobieMapper.usernameDoobieMapper
 import realworld.adapter.persistence.row.{ArticleWithAuthorRow, FavoriteRow, FollowerRow, TagRow}
 import realworld.domain.model.Article.*
 import realworld.domain.model.Moment.{Created, Updated}
@@ -67,28 +69,35 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
       .query[ArticleWithAuthorRow]
       .to[List]
       .transact(transactor)
-    articleIds = NonEmptyList.fromListUnsafe(articles.map(_.articleId))
-    authorIds = NonEmptyList.fromListUnsafe(articles.map(_.authorId))
-    favorites <- sql"""SELECT profile_id, article_id
-                      |FROM favorites
-                      |WHERE ${in(fr"article_id", articleIds)}""".stripMargin
-      .query[FavoriteRow]
-      .to[List]
-      .transact(transactor)
-    tags <- sql"""SELECT tag, article_id
-                 |FROM tags
-                 |WHERE ${in(fr"article_id", articleIds)}""".stripMargin
-      .query[TagRow]
-      .to[List]
-      .transact(transactor)
-    followed <- sql"""SELECT user_id, follower_id
-                     |FROM followers
-                     |WHERE ${in(fr"user_id", authorIds)}
-                     |AND follower_id = $userId""".stripMargin
-      .query[FollowerRow]
-      .map(_.userId)
-      .to[List]
-      .transact(transactor)
+    favorites <- NonEmptyList.fromList(articles.map(_.articleId)) match
+      case Some(articleIds) =>
+        sql"""SELECT profile_id, article_id
+             |FROM favorites
+             |WHERE ${in(fr"article_id", articleIds)}""".stripMargin
+          .query[FavoriteRow]
+          .to[List]
+          .transact(transactor)
+      case None => IO.pure(List.empty)
+    tags <- NonEmptyList.fromList(articles.map(_.articleId)) match
+      case Some(articleIds) =>
+        sql"""SELECT tag, article_id
+             |FROM tags
+             |WHERE ${in(fr"article_id", articleIds)}""".stripMargin
+          .query[TagRow]
+          .to[List]
+          .transact(transactor)
+      case None => IO.pure(List.empty)
+    followed <- NonEmptyList.fromList(articles.map(_.authorId)) match
+      case Some(authorIds) =>
+        sql"""SELECT user_id, follower_id
+             |FROM followers
+             |WHERE ${in(fr"user_id", authorIds)}
+             |AND follower_id = $userId""".stripMargin
+          .query[FollowerRow]
+          .map(_.userId)
+          .to[List]
+          .transact(transactor)
+      case None => IO.pure(List.empty)
     result <- articles.traverse: article =>
       for
         slug <- Slug.from(article.slug).validated
@@ -127,7 +136,7 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
       .fromList(
         (
           filters.author.map(x => fr"authors.username = $x"),
-          filters.favorited.map(x => fr"favorites.username = $x"),
+          filters.favorited.map(x => fr"users.username = $x"),
           filters.tag.map(x => fr"tags.tag = $x"),
         ).toList.collect { case Some(value) => value },
       )

@@ -2,14 +2,14 @@ package es.eriktorr
 package realworld.adapter.rest.query
 
 import realworld.adapter.rest.query.ValidatedQueryParamDecoder.decodeQueryParamWith
-import realworld.domain.service.ArticlesFilters.Favorited
+import realworld.domain.model.User.Username
 
 import org.http4s.QueryParamDecoder
 import org.http4s.dsl.io.OptionalQueryParamDecoderMatcher
 
 object FavoritedQueryParam:
-  given favoritedQueryParamDecoder: QueryParamDecoder[Favorited] =
-    decodeQueryParamWith(Favorited.from, "favorited")
+  given favoritedQueryParamDecoder: QueryParamDecoder[Username] =
+    decodeQueryParamWith(Username.from, "favorited")
 
   object OptionalFavoritedQueryParamMatcher
-      extends OptionalQueryParamDecoderMatcher[Favorited]("favorited")
+      extends OptionalQueryParamDecoderMatcher[Username]("favorited")

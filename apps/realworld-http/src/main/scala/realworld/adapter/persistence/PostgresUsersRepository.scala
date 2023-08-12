@@ -4,6 +4,7 @@ package realworld.adapter.persistence
 import realworld.adapter.persistence.PostgresUsersRepository.given
 import realworld.adapter.persistence.mappers.SecretDoobieMapper.secretDoobieMapper
 import realworld.adapter.persistence.mappers.UserIdDoobieMapper.userIdDoobieMapper
+import realworld.adapter.persistence.mappers.UsernameDoobieMapper.usernameDoobieMapper
 import realworld.adapter.persistence.row.UserRow
 import realworld.domain.model.*
 import realworld.domain.model.Password.CipherText
@@ -129,6 +130,3 @@ object PostgresUsersRepository:
   given passwordDoobieMapper: Meta[Password[CipherText]] =
     Meta[Secret[String]]
       .tiemap(secret => Password.from[CipherText](secret.value).eitherMessage)(_.value)
-
-  given usernameDoobieMapper: Meta[Username] =
-    Meta[String].tiemap(Username.from(_).eitherMessage)(identity)

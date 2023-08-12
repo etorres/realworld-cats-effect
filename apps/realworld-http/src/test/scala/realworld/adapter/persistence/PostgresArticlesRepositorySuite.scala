@@ -1,11 +1,12 @@
 package es.eriktorr
 package realworld.adapter.persistence
 
-import realworld.adapter.persistence.PostgresArticlesRepositorySuite.testCaseGen
+import realworld.adapter.persistence.PostgresArticlesRepositorySuite.*
 import realworld.adapter.persistence.row.*
-import realworld.domain.model.Article.Author
+import realworld.domain.model.Article.{Author, Tag}
 import realworld.domain.model.ArticlesGenerators.{uniqueArticleData, ArticleContent, ArticleData}
 import realworld.domain.model.FollowersGenerators.followersGen
+import realworld.domain.model.User.Username
 import realworld.domain.model.UserWithPassword.UserWithHashPassword
 import realworld.domain.model.UsersGenerators.{uniqueTokenLessUsersWithId, UserWithId}
 import realworld.domain.model.{Article, UserId, UserWithPassword}
@@ -16,8 +17,22 @@ import cats.implicits.toFoldableOps
 import org.scalacheck.Gen
 import org.scalacheck.effect.PropF.forAllF
 
+import scala.util.chaining.scalaUtilChainingOps
+
 final class PostgresArticlesRepositorySuite extends PostgresSuite:
-  test("Should find articles using the given filters"):
+  test("Should find all articles"):
+    testWith(findAllArticlesTestCaseGen)
+
+  test("Should find articles filtered by favorited"):
+    testWith(filterByFavoritedTestCaseGen)
+
+  test("Should find articles filtered by author"):
+    testWith(filterByAuthorTestCaseGen)
+
+  test("Should find articles filtered by tag"):
+    testWith(filterByTagTestCaseGen)
+
+  private def testWith(testCaseGen: Gen[TestCase]) =
     forAllF(testCaseGen): testCase =>
       testTransactor.resource.use: transactor =>
         val usersTestRepository = PostgresUsersTestRepository(transactor)
@@ -35,10 +50,14 @@ final class PostgresArticlesRepositorySuite extends PostgresSuite:
             testCase.pagination,
             testCase.userId,
           )
+          // TODO
+          _ = println(s"\n >> FILTERS: ${testCase.filters}\n")
+          _ = println(s"\n >> OBTAINED: ${obtained.length}\n")
+          _ = println(s"\n >> EXPECTED: ${testCase.expected.length}\n")
+        // TODO
         yield obtained.sortBy(_.slug)).assertEquals(testCase.expected.sortBy(_.slug))
 
   // TODO: test pagination
-  // TODO: test filters
 
 @SuppressWarnings(Array("org.wartremover.warts.Throw"))
 object PostgresArticlesRepositorySuite:
@@ -54,12 +73,36 @@ object PostgresArticlesRepositorySuite:
       userRows: List[UserRow],
   )
 
-  private val testCaseGen = for
+  private val findAllArticlesTestCaseGen =
+    testCaseGen((_, _, _) => Gen.const(ArticlesFilters(None, None, None)))
+
+  private val filterByAuthorTestCaseGen = testCaseGen { case (authors, _, _) =>
+    filtersGen(Gen.some(Gen.oneOf(authors)), None, None)
+  }
+
+  private val filterByFavoritedTestCaseGen = testCaseGen { case (_, favorited, _) =>
+    filtersGen(None, Gen.some(Gen.oneOf(favorited)), None)
+  }
+
+  private val filterByTagTestCaseGen = testCaseGen { case (_, _, tags) =>
+    filtersGen(None, None, Gen.some(Gen.oneOf(tags)))
+  }
+
+  private def testCaseGen(
+      filtersGen: (List[Username], List[Username], List[Tag]) => Gen[ArticlesFilters],
+  ) = for
     case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
     allUsers = selectedUser :: otherUsers
     allArticles <- uniqueArticleData(7, Gen.oneOf(allUsers.map(_.userId)))
     allFollowers <- followersGen(allUsers.map(_.userId))
-    filters = ArticlesFilters(None, None, None)
+    filters <-
+      val users = allUsers.map(x => x.userId -> x.userWithPassword.user.username).toMap
+      val authors =
+        allArticles.map(_.content.authorId).map(users.get).collect { case Some(value) => value }
+      val favorited =
+        allArticles.flatMap(_.favorites).map(users.get).collect { case Some(value) => value }
+      val tags = allArticles.flatMap(_.tags)
+      filtersGen(authors, favorited, tags)
     pagination = Pagination.default
     articleRows = allArticles.map:
       case ArticleData(content, _, _) => articleRowFrom(content)
@@ -74,7 +117,29 @@ object PostgresArticlesRepositorySuite:
     userRows = allUsers.map:
       case UserWithId(userId, userWithPassword) =>
         userRowFrom(userId, userWithPassword)
-    expected = allArticles.map:
+    expected = (filters.author.flatMap(username =>
+      allUsers.find(_.userWithPassword.user.username == username).map(_.userId),
+    ) match
+      case Some(selectedAuthor) =>
+        allArticles.filter:
+          case ArticleData(content, _, _) => content.authorId == selectedAuthor
+      case None => allArticles
+    )
+    .pipe: filtered =>
+      filters.favorited.flatMap(username =>
+        allUsers.find(_.userWithPassword.user.username == username).map(_.userId),
+      ) match
+        case Some(selectedFavorited) =>
+          filtered.filter:
+            case ArticleData(_, favorites, _) => favorites.contains(selectedFavorited)
+        case None => filtered
+    .pipe: filtered =>
+      filters.tag match
+        case Some(selectedTag) =>
+          filtered.filter:
+            case ArticleData(_, _, tags) => tags.contains(selectedTag)
+        case None => filtered
+    .map:
       case ArticleData(content, favorites, tags) =>
         val author = allUsers
           .find(_.userId == content.authorId)
@@ -108,6 +173,16 @@ object PostgresArticlesRepositorySuite:
     selectedUser.userId,
     userRows,
   )
+
+  private def filtersGen(
+      authorGen: Gen[Option[Username]],
+      favoritedGen: Gen[Option[Username]],
+      tagGen: Gen[Option[Tag]],
+  ) = for
+    author <- authorGen
+    favorited <- favoritedGen
+    tag <- tagGen
+  yield ArticlesFilters(author, favorited, tag)
 
   private def articleRowFrom(content: ArticleContent) =
     ArticleRow(
