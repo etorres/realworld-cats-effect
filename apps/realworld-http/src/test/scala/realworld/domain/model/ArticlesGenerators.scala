@@ -120,7 +120,7 @@ object ArticlesGenerators:
       articlesData: List[ArticleData],
       followers: Map[UserId, List[UserId]],
       users: List[UserWithId],
-      userId: UserId,
+      userId: Option[UserId],
   ): List[Article] =
     articlesData.map:
       case ArticleData(content, favorites, tags) =>
@@ -136,12 +136,17 @@ object ArticlesGenerators:
           tags.sorted,
           content.createdAt,
           content.updatedAt,
-          favorites.contains(userId),
+          userId match
+            case Some(value) => favorites.contains(value)
+            case None => false
+          ,
           favorites.length,
           Author(
             author.username,
             author.bio,
             author.image,
-            followers.get(content.authorId).exists(_.contains(userId)),
+            userId match
+              case Some(value) => followers.get(content.authorId).exists(_.contains(value))
+              case None => false,
           ),
         )

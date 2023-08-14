@@ -12,7 +12,7 @@ final class FakeArticlesRepository(stateRef: Ref[IO, ArticlesRepositoryState])
   override def findArticlesBy(
       filters: ArticlesFilters,
       pagination: Pagination,
-      userId: UserId,
+      viewer: Option[UserId],
   ): IO[List[Article]] = stateRef.get.map(_.articles.getOrElse((filters, pagination), List.empty))
 
 object FakeArticlesRepository:

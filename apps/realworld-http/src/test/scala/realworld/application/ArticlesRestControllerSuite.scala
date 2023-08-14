@@ -16,6 +16,7 @@ import realworld.domain.model.UsersGenerators.{uniqueUserData, usernameGen, User
 import realworld.domain.service.Pagination.{Limit, Offset}
 import realworld.domain.service.{ArticlesFilters, Pagination}
 
+import cats.effect.IO
 import io.circe.Decoder
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.{Method, Request, Status, Uri}
@@ -28,6 +29,7 @@ final class ArticlesRestControllerSuite extends HttpAppSuite:
   test("should list articles applying the given filters and navigation settings"):
     forAllF(successfulListArticlesGen): testCase =>
       given Decoder[ListArticlesResponse] = ListArticlesResponse.getArticlesResponseJsonDecoder
+      println(s" >> AUTH: ${testCase.authorization}") // TODO
       (for (result, finalState) <- runWith(
           testCase.initialState,
           Request(
@@ -46,15 +48,16 @@ object ArticlesRestControllerSuite:
     allUsers = selectedUser :: otherUsers
     allArticlesData <- uniqueArticleData(7, Gen.oneOf(allUsers.map(_.userId)))
     allFollowers <- followersGen(allUsers.map(_.userId))
+    viewer <- Gen.frequency(1 -> Gen.some(selectedUser), 1 -> None)
     articles = articlesFrom(
       allArticlesData,
       allFollowers,
       allUsers.map(x => UserWithId(x.userId, x.userWithPassword)),
-      selectedUser.userId,
+      viewer.map(_.userId),
     )
     filter <- filterGen
     pagination <- paginationGen
-    authorization = authorizationFor(selectedUser.userWithPassword.user)
+    authorization = viewer.map(x => authorizationFor(x.userWithPassword.user))
     initialState = HttpAppState.empty
       .setArticles(Map((filter, pagination.getOrElse(Pagination.default)) -> articles))
       .setTokens(tokensFrom(allUsers))
@@ -72,7 +75,7 @@ object ArticlesRestControllerSuite:
       case ::(head, next) => (head :: next).mkString("?", "&", "")
       case Nil => ""
     expectedResponse = (ListArticlesResponse(articles, articles.length), Status.Ok)
-  yield TestCase(Some(authorization), initialState, expectedState, request, expectedResponse)
+  yield TestCase(authorization, initialState, expectedState, request, expectedResponse)
 
   private lazy val filterGen = for
     author <- Gen.frequency(1 -> Gen.some(usernameGen), 1 -> None)

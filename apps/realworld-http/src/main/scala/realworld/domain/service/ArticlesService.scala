@@ -9,5 +9,5 @@ final class ArticlesService(articlesRepository: ArticlesRepository):
   def findArticlesBy(
       filters: ArticlesFilters,
       pagination: Pagination,
-      userId: UserId,
-  ): IO[List[Article]] = articlesRepository.findArticlesBy(filters, pagination, userId)
+      viewer: Option[UserId],
+  ): IO[List[Article]] = articlesRepository.findArticlesBy(filters, pagination, viewer)

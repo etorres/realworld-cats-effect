@@ -11,20 +11,16 @@ import realworld.domain.model.UserId
 import realworld.domain.service.*
 
 import cats.effect.IO
+import org.http4s.AuthedRoutes
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.io.*
-import org.http4s.{AuthedRoutes, HttpRoutes}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 
-final class ArticlesRestController(
-    articlesService: ArticlesService,
-    authService: AuthService,
-    usersService: UsersService,
-)(using
+final class ArticlesRestController(articlesService: ArticlesService)(using
     logger: SelfAwareStructuredLogger[IO],
-) extends BaseRestController(authService, usersService):
-  val routes: HttpRoutes[IO] =
-    val secureRoutes = AuthedRoutes.of[UserId, IO]:
+) extends BaseRestController:
+  override val optionalAuthRoutes: Option[AuthedRoutes[UserId, IO]] = Some(
+    AuthedRoutes.of[UserId, IO]:
       case request @ GET -> Root / "articles"
           :? OptionalAuthorQueryParamMatcher(author)
           +& OptionalFavoritedQueryParamMatcher(favorited)
@@ -38,9 +34,8 @@ final class ArticlesRestController(
               limit.getOrElse(Pagination.default.limit),
               offset.getOrElse(Pagination.default.offset),
             ),
-            userId,
+            if userId != UserId.anonymous then Some(userId) else None,
           )
           response <- Ok(ListArticlesResponse(articles, articles.length))
-        yield response).handleErrorWith(contextFrom(request.req))
-
-    authMiddleware(secureRoutes)
+        yield response).handleErrorWith(contextFrom(request.req)),
+  )

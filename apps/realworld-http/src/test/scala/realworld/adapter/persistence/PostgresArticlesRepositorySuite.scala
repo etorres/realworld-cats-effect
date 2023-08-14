@@ -29,6 +29,9 @@ final class PostgresArticlesRepositorySuite extends PostgresSuite:
   test("should find all articles"):
     testWith(findAllArticlesTestCaseGen)
 
+  test("should find all articles anonymously"):
+    testWith(findAllArticlesAnonymouslyTestCaseGen)
+
   test("should find articles filtered by favorited"):
     testWith(filterByFavoritedTestCaseGen)
 
@@ -57,7 +60,7 @@ final class PostgresArticlesRepositorySuite extends PostgresSuite:
           obtained <- articlesRepository.findArticlesBy(
             testCase.filters,
             testCase.pagination,
-            testCase.userId,
+            testCase.viewer,
           )
         yield obtained.sortBy(_.slug)).assertEquals(testCase.expected.sortBy(_.slug))
 
@@ -70,34 +73,33 @@ object PostgresArticlesRepositorySuite:
       followerRows: List[FollowerRow],
       pagination: Pagination,
       tagRows: List[TagRow],
-      userId: UserId,
+      viewer: Option[UserId],
       userRows: List[UserRow],
   )
 
-  private val findAllArticlesTestCaseGen =
-    testCaseGen((_, _, _) => Gen.const(ArticlesFilters(None, None, None)))
+  private val findAllArticlesTestCaseGen = testCaseGen()
 
-  private val filterByAuthorTestCaseGen = testCaseGen { case (authors, _, _) =>
-    filtersGen(Gen.some(Gen.oneOf(authors)), None, None)
-  }
+  private val findAllArticlesAnonymouslyTestCaseGen = testCaseGen(viewerGen = _ => None)
 
-  private val filterByFavoritedTestCaseGen = testCaseGen { case (_, favorited, _) =>
-    filtersGen(None, Gen.some(Gen.oneOf(favorited)), None)
-  }
-
-  private val filterByTagTestCaseGen = testCaseGen { case (_, _, tags) =>
-    filtersGen(None, None, Gen.some(Gen.oneOf(tags)))
-  }
-
-  private val paginationTestCaseGen =
+  private val filterByAuthorTestCaseGen =
     testCaseGen(
-      (_, _, _) => Gen.const(ArticlesFilters(None, None, None)),
-      Gen.const(Pagination(Limit.unsafeFrom(2), Offset.unsafeFrom(1))),
+      filtersGen = (authors, _, _) => filtersGen(Gen.some(Gen.oneOf(authors)), None, None),
     )
 
+  private val filterByFavoritedTestCaseGen =
+    testCaseGen((_, favorited, _) => filtersGen(None, Gen.some(Gen.oneOf(favorited)), None))
+
+  private val filterByTagTestCaseGen =
+    testCaseGen((_, _, tags) => filtersGen(None, None, Gen.some(Gen.oneOf(tags))))
+
+  private val paginationTestCaseGen =
+    testCaseGen(paginationGen = Pagination(Limit.unsafeFrom(2), Offset.unsafeFrom(1)))
+
   private def testCaseGen(
-      filtersGen: (List[Username], List[Username], List[Tag]) => Gen[ArticlesFilters],
+      filtersGen: (List[Username], List[Username], List[Tag]) => Gen[ArticlesFilters] = (_, _, _) =>
+        Gen.const(ArticlesFilters(None, None, None)),
       paginationGen: Gen[Pagination] = Gen.const(Pagination.default),
+      viewerGen: UserId => Gen[Option[UserId]] = userId => Gen.some(userId),
   ) = for
     case selectedUser :: otherUsers <- uniqueTokenLessUsersWithId(7)
     allUsers = selectedUser :: otherUsers
@@ -112,6 +114,7 @@ object PostgresArticlesRepositorySuite:
       val tags = allArticles.flatMap(_.tags)
       filtersGen(authors, favorited, tags)
     pagination <- paginationGen
+    viewer <- viewerGen(selectedUser.userId)
     articleRows = allArticles.map:
       case ArticleData(content, _, _) => articleRowFrom(content)
     favoriteRows = allArticles.flatMap:
@@ -156,7 +159,7 @@ object PostgresArticlesRepositorySuite:
         filtered,
         allFollowers,
         allUsers,
-        selectedUser.userId,
+        viewer,
       )
   yield TestCase(
     articleRows,
@@ -166,7 +169,7 @@ object PostgresArticlesRepositorySuite:
     followerRows,
     pagination,
     tagRows,
-    selectedUser.userId,
+    viewer,
     userRows,
   )
 

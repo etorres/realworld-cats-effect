@@ -73,7 +73,7 @@ lazy val `realworld-http` = project
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC4",
       "org.tpolecat" %% "doobie-postgres" % "1.0.0-RC4",
       "org.typelevel" %% "cats-collections-core" % "0.9.7",
-      "org.typelevel" %% "cats-core" % "2.9.0",
+      "org.typelevel" %% "cats-core" % "2.10.0",
       "org.typelevel" %% "cats-effect" % "3.5.1",
       "org.typelevel" %% "cats-effect-std" % "3.5.1",
       "org.typelevel" %% "log4cats-core" % "2.6.0",

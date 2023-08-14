@@ -1,5 +1,5 @@
 package es.eriktorr
-package realworld.adapter.rest
+package realworld.application
 
 import realworld.domain.model.User.Token
 import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
@@ -28,10 +28,10 @@ object JwtAuthMiddleware:
                 token <- Token.from(token).validated
                 result <- verifier(token)
                   .map(_.asRight)
-                  .handleErrorWith(_ => IO(AuthError.Forbidden.asLeft))
+                  .handleErrorWith(_ => IO.pure(AuthError.Forbidden.asLeft))
               yield result
-            case _ => IO(AuthError.Unauthorized.asLeft)
-        case None => IO(AuthError.Unauthorized.asLeft)
+            case _ => IO.pure(AuthError.Unauthorized.asLeft)
+        case None => IO.pure(AuthError.Unauthorized.asLeft)
 
   private val onFailure: AuthedRoutes[AuthError, IO] = Kleisli {
     (request: AuthedRequest[IO, AuthError]) =>

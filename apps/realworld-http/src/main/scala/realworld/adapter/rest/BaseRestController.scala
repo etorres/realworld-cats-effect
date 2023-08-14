@@ -2,10 +2,9 @@ package es.eriktorr
 package realworld.adapter.rest
 
 import realworld.adapter.rest.BaseRestController.{InvalidRequest, Transformer}
-import realworld.adapter.rest.JwtAuthMiddleware.jwtAuthMiddleware
 import realworld.domain.model.UserId
+import realworld.domain.service.UsersService
 import realworld.domain.service.UsersService.AccessForbidden
-import realworld.domain.service.{AuthService, UsersService}
 import realworld.shared.data.error.HandledError
 import realworld.shared.data.validated.ValidatedNecExtensions.{validatedNecTo, AllErrorsOr}
 
@@ -14,18 +13,14 @@ import cats.implicits.catsSyntaxMonadError
 import io.circe.Decoder
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.dsl.io.*
-import org.http4s.server.AuthMiddleware
-import org.http4s.{Request, Response}
+import org.http4s.{AuthedRoutes, HttpRoutes, Request, Response}
 import org.typelevel.ci.CIStringSyntax
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 
-abstract class BaseRestController(authService: AuthService, usersService: UsersService):
-  protected val authMiddleware: AuthMiddleware[IO, UserId] = jwtAuthMiddleware[UserId](token =>
-    for
-      email <- authService.verify(token)
-      userId <- usersService.userIdFor(email)
-    yield userId,
-  )
+abstract class BaseRestController:
+  val optionalAuthRoutes: Option[AuthedRoutes[UserId, IO]] = None
+  val publicRoutes: Option[HttpRoutes[IO]] = None
+  val secureRoutes: Option[AuthedRoutes[UserId, IO]] = None
 
   protected def contextFrom(request: Request[IO])(using
       logger: SelfAwareStructuredLogger[IO],

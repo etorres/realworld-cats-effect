@@ -9,5 +9,5 @@ trait ArticlesRepository:
   def findArticlesBy(
       filters: ArticlesFilters,
       pagination: Pagination,
-      userId: UserId,
+      viewer: Option[UserId],
   ): IO[List[Article]]

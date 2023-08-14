@@ -19,7 +19,7 @@ import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
 
 import cats.data.NonEmptyList
 import cats.effect.IO
-import cats.implicits.toTraverseOps
+import cats.implicits.{catsSyntaxTuple2Semigroupal, toTraverseOps}
 import doobie.Fragments.whereAnd
 import doobie.hikari.HikariTransactor
 import doobie.implicits.*
@@ -31,7 +31,7 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
   override def findArticlesBy(
       filters: ArticlesFilters,
       pagination: Pagination,
-      userId: UserId,
+      viewer: Option[UserId],
   ): IO[List[Article]] = for
     articles <- fr"""SELECT
                     |  articles.article_id,
@@ -87,8 +87,8 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
           .to[List]
           .transact(transactor)
       case None => IO.pure(List.empty)
-    followed <- NonEmptyList.fromList(articles.map(_.authorId)) match
-      case Some(authorIds) =>
+    followed <- (NonEmptyList.fromList(articles.map(_.authorId)), viewer).tupled match
+      case Some((authorIds, userId)) =>
         sql"""SELECT user_id, follower_id
              |FROM followers
              |WHERE ${in(fr"user_id", authorIds)}
@@ -109,7 +109,10 @@ final class PostgresArticlesRepository(transactor: HikariTransactor[IO]) extends
             Tag.from(tag.tag).validated
         createdAt <- Moment.from[Created](article.createdAt).validated
         updatedAt <- Moment.from[Updated](article.updatedAt).validated
-        favorited = favorites.filter(_.articleId == article.articleId).exists(_.profileId == userId)
+        favorited = viewer match
+          case Some(userId) =>
+            favorites.filter(_.articleId == article.articleId).exists(_.profileId == userId)
+          case None => false
         favoritesCount = favorites.count(_.articleId == article.articleId)
         author <- for
           username <- Username.from(article.username).validated
