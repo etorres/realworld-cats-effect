@@ -19,13 +19,16 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 final class ProfileRestController(usersService: UsersService)(using
     logger: SelfAwareStructuredLogger[IO],
 ) extends BaseRestController:
-  override val secureRoutes: Option[AuthedRoutes[UserId, IO]] = Some(AuthedRoutes.of[UserId, IO]:
-    case request @ GET -> Root / "profiles" / UsernameVar(username) as userId =>
-      (for
-        profile <- usersService.profileFor(username, userId)
-        response <- Ok(GetProfileResponse(profile))
-      yield response).handleErrorWith(contextFrom(request.req))
+  override val optionalAuthRoutes: Option[AuthedRoutes[UserId, IO]] = Some(
+    AuthedRoutes.of[UserId, IO]:
+      case request @ GET -> Root / "profiles" / UsernameVar(username) as userId =>
+        (for
+          profile <- usersService.profileFor(username, userId)
+          response <- Ok(GetProfileResponse(profile))
+        yield response).handleErrorWith(contextFrom(request.req)),
+  )
 
+  override val secureRoutes: Option[AuthedRoutes[UserId, IO]] = Some(AuthedRoutes.of[UserId, IO]:
     case request @ DELETE -> Root / "profiles" / UsernameVar(username) / "follow" as userId =>
       (for
         profile <- usersService.unfollow(username, userId)

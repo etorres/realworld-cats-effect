@@ -73,12 +73,15 @@ object ProfileRestControllerSuite:
   private val successfulGetProfileGen = for
     case followed :: follower :: otherUsers <- uniqueUserData(7)
     allUsers = followed :: follower :: otherUsers
-    following <- Gen.oneOf(true, false)
+    viewer <- Gen.frequency(1 -> Gen.some(follower), 1 -> None)
+    following <- viewer match
+      case Some(_) => Gen.oneOf(true, false)
+      case None => Gen.const(false)
     followers = Map(
       followed.userId -> ((if following then List(follower.userId)
                            else List.empty) ++ otherUsers.map(_.userId)),
     )
-    authorization = authorizationFor(follower.userWithPassword.user)
+    authorization = viewer.map(x => authorizationFor(x.userWithPassword.user))
     initialState = HttpAppState.empty
       .setFollowers(followers)
       .setPasswords(passwordsFrom(allUsers))
@@ -97,7 +100,7 @@ object ProfileRestControllerSuite:
       ),
       Status.Ok,
     )
-  yield TestCase(Some(authorization), initialState, expectedState, request, expectedResponse)
+  yield TestCase(authorization, initialState, expectedState, request, expectedResponse)
 
   private val successfulFollowUserGen = for
     case followed :: follower :: otherUsers <- uniqueUserData(7)
