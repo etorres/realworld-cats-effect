@@ -29,7 +29,6 @@ final class ArticlesRestControllerSuite extends HttpAppSuite:
   test("should list articles applying the given filters and navigation settings"):
     forAllF(successfulListArticlesGen): testCase =>
       given Decoder[ListArticlesResponse] = ListArticlesResponse.getArticlesResponseJsonDecoder
-      println(s" >> AUTH: ${testCase.authorization}") // TODO
       (for (result, finalState) <- runWith(
           testCase.initialState,
           Request(

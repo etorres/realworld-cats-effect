@@ -2,7 +2,11 @@ package es.eriktorr
 package realworld.application
 
 import realworld.adapter.rest.{ArticlesRestController, ProfileRestController, UsersRestController}
-import realworld.application.JwtAuthMiddleware.jwtAuthMiddleware
+import realworld.application.JwtAuthMiddleware.{
+  jwtAuthMiddleware,
+  jwtAuthWithAnonymousFallThroughMiddleware,
+}
+import realworld.domain.model.User.Token
 import realworld.domain.model.UserId
 import realworld.domain.service.{ArticlesService, AuthService, UsersService}
 import realworld.shared.adapter.rest.{HealthService, MetricsService, TraceService}
@@ -51,6 +55,19 @@ final class RealWorldHttpApp(
       case Nil => aggregated
       case ::(head, next) => composedHttpRoutes(head <+> aggregated, next)
 
+    def userIdFrom(token: Token) = for
+      email <- authService.verify(token)
+      userId <- usersService.userIdFor(email)
+    yield userId
+
+    val authMiddleware: AuthMiddleware[IO, UserId] = jwtAuthMiddleware[UserId](userIdFrom)
+
+    val authMiddlewareOpt: AuthMiddleware[IO, UserId] =
+      jwtAuthWithAnonymousFallThroughMiddleware[UserId](
+        token => userIdFrom(token),
+        UserId.anonymous,
+      )
+
     (
       NonEmptyList
         .fromList(
@@ -66,7 +83,7 @@ final class RealWorldHttpApp(
     ).mapN { case (optionalAuthRoutes, publicRoutes, secureRoutes) =>
       metricsService
         .metricsFor(
-          publicRoutes <+> authMiddleware(optionalAuthRoutes) <+> authMiddleware(secureRoutes),
+          publicRoutes <+> authMiddlewareOpt(optionalAuthRoutes) <+> authMiddleware(secureRoutes),
         )
         .pipe: routes =>
           // Allow the compression of the Response body using GZip
@@ -89,32 +106,26 @@ final class RealWorldHttpApp(
           traceService.trace(routes)
     }
 
-  private lazy val authMiddleware: AuthMiddleware[IO, UserId] = jwtAuthMiddleware[UserId](token =>
-    for
-      email <- authService.verify(token)
-      userId <- usersService.userIdFor(email)
-    yield userId,
-  )
+  val httpApp: HttpApp[IO] =
+    val livenessCheckEndpoint: HttpRoutes[IO] = HttpRoutes.of[IO] { case GET -> Root =>
+      Ok(s"${healthService.serviceName} is live")
+    }
 
-  private val livenessCheckEndpoint: HttpRoutes[IO] = HttpRoutes.of[IO] { case GET -> Root =>
-    Ok(s"${healthService.serviceName} is live")
-  }
-
-  private val readinessCheckEndpoint: HttpRoutes[IO] = HttpRoutes.of[IO] { case GET -> Root =>
-    healthService.isReady.ifM(
-      ifTrue = Ok(s"${healthService.serviceName} is ready"),
-      ifFalse = ServiceUnavailable(s"${healthService.serviceName} is not ready"),
-    )
-  }
-
-  val httpApp: HttpApp[IO] = (maybeApiEndpoint match
-    case Some(apiEndpoint) =>
-      Router(
-        "/api" -> apiEndpoint,
-        healthService.livenessPath -> livenessCheckEndpoint,
-        healthService.readinessPath -> readinessCheckEndpoint,
-        "/" -> metricsService.prometheusExportRoutes,
+    val readinessCheckEndpoint: HttpRoutes[IO] = HttpRoutes.of[IO] { case GET -> Root =>
+      healthService.isReady.ifM(
+        ifTrue = Ok(s"${healthService.serviceName} is ready"),
+        ifFalse = ServiceUnavailable(s"${healthService.serviceName} is not ready"),
       )
-    case None =>
-      Router("/" -> HttpRoutes.of[IO] { case _ => IO(Response(Status.InternalServerError)) })
-  ).orNotFound
+    }
+
+    (maybeApiEndpoint match
+      case Some(apiEndpoint) =>
+        Router(
+          "/api" -> apiEndpoint,
+          healthService.livenessPath -> livenessCheckEndpoint,
+          healthService.readinessPath -> readinessCheckEndpoint,
+          "/" -> metricsService.prometheusExportRoutes,
+        )
+      case None =>
+        Router("/" -> HttpRoutes.of[IO] { case _ => IO(Response(Status.InternalServerError)) })
+    ).orNotFound

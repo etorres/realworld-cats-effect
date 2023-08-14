@@ -33,6 +33,24 @@ object JwtAuthMiddleware:
             case _ => IO.pure(AuthError.Unauthorized.asLeft)
         case None => IO.pure(AuthError.Unauthorized.asLeft)
 
+  private def jwtOptionalAuth[A](
+      verifier: Token => IO[A],
+      defaultValue: A,
+  ): Kleisli[IO, Request[IO], Either[AuthError, A]] = Kleisli: request =>
+    val authHeader: Option[Authorization] = request.headers.get[Authorization]
+    authHeader match
+      case Some(value) =>
+        value match
+          case Authorization(Http4sToken(AuthScheme.Bearer, token)) =>
+            for
+              token <- Token.from(token).validated
+              result <- verifier(token)
+                .map(_.asRight)
+                .handleErrorWith(_ => IO.pure(AuthError.Forbidden.asLeft))
+            yield result
+          case _ => IO.pure(AuthError.Unauthorized.asLeft)
+      case None => IO.pure(defaultValue.asRight)
+
   private val onFailure: AuthedRoutes[AuthError, IO] = Kleisli {
     (request: AuthedRequest[IO, AuthError]) =>
       request.context match
@@ -42,3 +60,9 @@ object JwtAuthMiddleware:
 
   def jwtAuthMiddleware[A](verifier: Token => IO[A]): AuthMiddleware[IO, A] =
     AuthMiddleware(jwtAuth(verifier), onFailure)
+
+  def jwtAuthWithAnonymousFallThroughMiddleware[A](
+      verifier: Token => IO[A],
+      defaultValue: A,
+  ): AuthMiddleware[IO, A] =
+    AuthMiddleware(jwtOptionalAuth(verifier, defaultValue), onFailure)
