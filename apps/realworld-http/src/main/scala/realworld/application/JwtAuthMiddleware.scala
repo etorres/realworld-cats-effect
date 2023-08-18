@@ -1,8 +1,8 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.domain.model.User.Token
-import realworld.shared.data.validated.ValidatedNecExtensions.validatedNecTo
+import realworld.common.data.validated.ValidatedNecExtensions.validatedNecTo
+import realworld.users.core.domain.User.Token
 
 import cats.data.{Kleisli, OptionT}
 import cats.effect.IO
@@ -17,25 +17,9 @@ object JwtAuthMiddleware:
     case Forbidden
     case Unauthorized
 
-  private def jwtAuth[A](verifier: Token => IO[A]): Kleisli[IO, Request[IO], Either[AuthError, A]] =
-    Kleisli: request =>
-      val authHeader: Option[Authorization] = request.headers.get[Authorization]
-      authHeader match
-        case Some(value) =>
-          value match
-            case Authorization(Http4sToken(AuthScheme.Bearer, token)) =>
-              for
-                token <- Token.from(token).validated
-                result <- verifier(token)
-                  .map(_.asRight)
-                  .handleErrorWith(_ => IO.pure(AuthError.Forbidden.asLeft))
-              yield result
-            case _ => IO.pure(AuthError.Unauthorized.asLeft)
-        case None => IO.pure(AuthError.Unauthorized.asLeft)
-
-  private def jwtOptionalAuth[A](
+  private def jwtAuth[A](
       verifier: Token => IO[A],
-      defaultValue: A,
+      defaultValue: Option[A],
   ): Kleisli[IO, Request[IO], Either[AuthError, A]] = Kleisli: request =>
     val authHeader: Option[Authorization] = request.headers.get[Authorization]
     authHeader match
@@ -49,7 +33,11 @@ object JwtAuthMiddleware:
                 .handleErrorWith(_ => IO.pure(AuthError.Forbidden.asLeft))
             yield result
           case _ => IO.pure(AuthError.Unauthorized.asLeft)
-      case None => IO.pure(defaultValue.asRight)
+      case None =>
+        IO.pure(defaultValue match
+          case Some(value) => value.asRight
+          case None => AuthError.Unauthorized.asLeft,
+        )
 
   private val onFailure: AuthedRoutes[AuthError, IO] = Kleisli {
     (request: AuthedRequest[IO, AuthError]) =>
@@ -58,11 +46,8 @@ object JwtAuthMiddleware:
         case _ => OptionT.pure[IO](Response[IO](status = Status.Unauthorized))
   }
 
-  def jwtAuthMiddleware[A](verifier: Token => IO[A]): AuthMiddleware[IO, A] =
-    AuthMiddleware(jwtAuth(verifier), onFailure)
-
-  def jwtAuthWithAnonymousFallThroughMiddleware[A](
+  def jwtAuthMiddleware[A](
       verifier: Token => IO[A],
-      defaultValue: A,
+      defaultValue: Option[A] = None,
   ): AuthMiddleware[IO, A] =
-    AuthMiddleware(jwtOptionalAuth(verifier, defaultValue), onFailure)
+    AuthMiddleware(jwtAuth(verifier, defaultValue), onFailure)

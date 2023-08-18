@@ -1,15 +1,14 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.adapter.rest.{ArticlesRestController, ProfileRestController, UsersRestController}
-import realworld.application.JwtAuthMiddleware.{
-  jwtAuthMiddleware,
-  jwtAuthWithAnonymousFallThroughMiddleware,
-}
-import realworld.domain.model.User.Token
-import realworld.domain.model.UserId
-import realworld.domain.service.{ArticlesService, AuthService, UsersService}
-import realworld.shared.adapter.rest.{HealthService, MetricsService, TraceService}
+import realworld.application.JwtAuthMiddleware.jwtAuthMiddleware
+import realworld.articles.core.api.ArticlesRestController
+import realworld.articles.core.domain.ArticlesService
+import realworld.common.api.{HealthService, MetricsService, TraceService}
+import realworld.users.core.api.UsersRestController
+import realworld.users.core.domain.User.Token
+import realworld.users.core.domain.{AuthService, UserId, UsersService}
+import realworld.users.profiles.api.ProfileRestController
 
 import cats.data.NonEmptyList
 import cats.effect.IO
@@ -63,10 +62,7 @@ final class RealWorldHttpApp(
     val authMiddleware: AuthMiddleware[IO, UserId] = jwtAuthMiddleware[UserId](userIdFrom)
 
     val authMiddlewareOpt: AuthMiddleware[IO, UserId] =
-      jwtAuthWithAnonymousFallThroughMiddleware[UserId](
-        token => userIdFrom(token),
-        UserId.anonymous,
-      )
+      jwtAuthMiddleware[UserId](token => userIdFrom(token), Some(UserId.anonymous))
 
     (
       NonEmptyList

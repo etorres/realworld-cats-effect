@@ -1,12 +1,11 @@
 package es.eriktorr
 package realworld.application
 
-import realworld.shared.Secret
-import realworld.shared.application.HealthConfig.{LivenessPath, ReadinessPath, given}
-import realworld.shared.application.HttpServerConfig.{MaxActiveRequests, given}
-import realworld.shared.application.JdbcConfig.{ConnectUrl, Password, Username, given}
-import realworld.shared.application.SecurityConfig.{JwtIssuer, JwtSecret}
-import realworld.shared.application.{HealthConfig, HttpServerConfig, JdbcConfig, SecurityConfig}
+import realworld.application.HealthConfig.{LivenessPath, ReadinessPath, given}
+import realworld.application.HttpServerConfig.{MaxActiveRequests, given}
+import realworld.application.JdbcConfig.{ConnectUrl, Password, Username, given}
+import realworld.application.SecurityConfig.{JwtIssuer, JwtSecret}
+import realworld.common.Secret
 
 import cats.Show
 import cats.collections.Range

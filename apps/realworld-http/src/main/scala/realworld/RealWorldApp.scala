@@ -1,16 +1,14 @@
 package es.eriktorr
 package realworld
 
-import realworld.adapter.persistence.{
-  PostgresArticlesRepository,
-  PostgresFollowersRepository,
-  PostgresUsersRepository,
-}
 import realworld.application.{HttpServer, RealWorldConfig, RealWorldHttpApp, RealWorldParams}
-import realworld.domain.service.{ArticlesService, AuthService, CipherService, UsersService}
-import realworld.shared.ConsoleLogger
-import realworld.shared.adapter.persistence.JdbcTransactor
-import realworld.shared.adapter.rest.{HealthService, MetricsService, ServiceName, TraceService}
+import realworld.articles.core.db.PostgresArticlesRepository
+import realworld.articles.core.domain.ArticlesService
+import realworld.common.api.{HealthService, MetricsService, ServiceName, TraceService}
+import realworld.common.db.JdbcTransactor
+import realworld.users.core.db.PostgresUsersRepository
+import realworld.users.core.domain.{AuthService, CipherService, UsersService}
+import realworld.users.profiles.db.PostgresFollowersRepository
 
 import cats.effect.{ExitCode, IO, Resource}
 import cats.implicits.{catsSyntaxTuple2Semigroupal, showInterpolator}
@@ -32,7 +30,6 @@ object RealWorldApp extends CommandIOApp(name = "realworld-http", header = "Real
     given SelfAwareStructuredLogger[IO] = logger
     _ <- logger.info(show"Starting HTTP server with configuration: $config")
     _ <- (for
-      consoleLogger <- ConsoleLogger.resource
       transactor <- JdbcTransactor(config.jdbcConfig).resource
       articlesRepository = PostgresArticlesRepository(transactor)
       articlesService = ArticlesService(articlesRepository)
