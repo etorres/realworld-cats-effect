@@ -40,7 +40,7 @@ lazy val commons = project
       "org.http4s" %% "http4s-server" % "0.23.23" % Optional,
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC4" % Optional,
       "org.typelevel" %% "cats-collections-core" % "0.9.7" % Optional,
-      "org.typelevel" %% "cats-core" % "2.9.0" % Optional,
+      "org.typelevel" %% "cats-core" % "2.10.0" % Optional,
       "org.typelevel" %% "cats-effect" % "3.5.1" % Optional,
       "org.typelevel" %% "log4cats-core" % "2.6.0" % Optional,
     ),
